@@ -102,6 +102,19 @@
     }),
   );
 
+  function mapTwinCategoryToRackulaCategory(cat: string): any {
+    const c = (cat || "").toLowerCase();
+    if (c.includes("server") || c.includes("vm") || c.includes("compute")) return "server";
+    if (c.includes("switch")) return "network";
+    if (c.includes("router") || c.includes("gateway") || c.includes("firewall")) return "firewall";
+    if (c.includes("storage") || c.includes("nas")) return "storage";
+    if (c.includes("ups") || c.includes("pdu") || c.includes("power")) return "power";
+    if (c.includes("cooling") || c.includes("fan")) return "cooling";
+    if (c.includes("cable") || c.includes("brush")) return "cable-management";
+    if (c.includes("panel") || c.includes("patch")) return "patch-panel";
+    return "other";
+  }
+
   function getCategoryColor(cat: string): string {
     switch ((cat || "").toLowerCase()) {
       case "server":
@@ -131,7 +144,7 @@
       model: dev.name,
       manufacturer: dev.vendor || "Generic",
       u_height: dev.uHeight || (dev.category === "Server" ? 2 : 1),
-      category: dev.category as any,
+      category: mapTwinCategoryToRackulaCategory(dev.category),
       is_full_depth: dev.isFullDepth ?? true,
       colour: getCategoryColor(dev.category),
     };

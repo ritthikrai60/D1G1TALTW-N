@@ -588,12 +588,16 @@ export function createApiRouterAndWs() {
       ...dev,
       id: dev.id,
       isPlaced: false,
+      parentRackId: null,
+      uPosition: null,
+      rackFace: null,
       floorIdx: null,
       roomId: '',
       roomNumber: '',
       position: null,
     });
     broadcast({ type: 'device_updated', device: updated });
+    broadcast({ type: 'state_changed', snapshot: getPublicSnapshot() });
     res.json({ device: updated });
   });
 
@@ -845,7 +849,20 @@ export function createApiRouterAndWs() {
       // 2. Synchronize devices in rack
       const currentMounted = getRackMountedItems(rack.id);
       const incomingDevices = Array.isArray(incomingRack.devices) ? incomingRack.devices : [];
-      const incomingIds = new Set(incomingDevices.map((d) => d.id).filter(Boolean));
+      const incomingIds = new Set();
+
+      for (const inc of incomingDevices) {
+        let dev = getDeviceById(inc.id);
+        if (!dev && inc.device_type) {
+          dev = getDeviceById(inc.device_type);
+        }
+        if (dev) {
+          incomingIds.add(dev.id);
+        }
+        if (inc.id) {
+          incomingIds.add(inc.id);
+        }
+      }
 
       // Unmount devices that were removed in Rackula
       for (const cur of currentMounted) {
@@ -856,12 +873,15 @@ export function createApiRouterAndWs() {
 
       // Place or update positions for incoming devices
       for (const inc of incomingDevices) {
-        const devId = inc.id;
         const targetPos = Math.max(1, Number(inc.position || 1));
         const targetFace = inc.face || 'front';
         const targetName = inc.name;
 
-        let dev = getDeviceById(devId);
+        let dev = getDeviceById(inc.id);
+        if (!dev && inc.device_type) {
+          dev = getDeviceById(inc.device_type);
+        }
+
         if (dev) {
           dev.parentRackId = rack.id;
           dev.uPosition = targetPos;
@@ -878,7 +898,7 @@ export function createApiRouterAndWs() {
           const typeSlug = inc.device_type;
           const typeDef = (parsed.device_types || []).find((t) => t.slug === typeSlug);
           mountDeviceInRack(rack.id, {
-            deviceId: devId,
+            deviceId: inc.id,
             name: targetName || typeDef?.model || 'Rack Device',
             uPosition: targetPos,
             face: targetFace,
@@ -952,10 +972,14 @@ export function createApiRouterAndWs() {
   function attachWebSocket(httpServer) {
     const wss = new WebSocketServer({ noServer: true });
     httpServer.on('upgrade', (request, socket, head) => {
+      socket.on('error', () => {
+        // Prevent client disconnect / ECONNRESET from crashing node
+      });
       if (request.url && request.url.startsWith('/ws')) {
         wss.handleUpgrade(request, socket, head, (ws) => {
           wsClients.add(ws);
           ws.on('close', () => wsClients.delete(ws));
+          ws.on('error', () => {});
           ws.send(
             JSON.stringify({
               type: 'connected',
@@ -963,6 +987,8 @@ export function createApiRouterAndWs() {
             })
           );
         });
+      } else {
+        socket.destroy();
       }
     });
   }

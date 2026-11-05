@@ -199,7 +199,7 @@ export function placeDeviceRecorded(
   }
 
   const device: PlacedDevice = {
-    id: generateId(),
+    id: deviceTypeSlug.startsWith("DEV-") ? deviceTypeSlug : generateId(),
     device_type: deviceTypeSlug,
     position: positionInternal,
     face: effectiveFace,

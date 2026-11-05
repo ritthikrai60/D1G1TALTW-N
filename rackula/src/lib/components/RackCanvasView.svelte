@@ -30,6 +30,7 @@
   import { getMinResizeHeight, snapResizeHeight } from "$lib/utils/rack-resize";
   import { U_HEIGHT_PX, getRackWidth } from "$lib/constants/layout";
   import { MAX_RACK_HEIGHT } from "$lib/types/constants";
+  import { handleSaveToServer, getStorageMode } from "$lib/storage";
 
   interface Props {
     partyMode?: boolean;
@@ -572,6 +573,9 @@
     // rack click would silently place the still-pending device.
     if (placementStore.isPlacing) placementStore.abandonPlacement();
     ondevicedrop?.(event);
+    if (getStorageMode() === "server" && !uiStore.readOnly) {
+      void handleSaveToServer(false);
+    }
   }
 
   function handleDeviceMove(
@@ -584,6 +588,9 @@
     const { rackId, deviceIndex, newPosition } = event.detail;
     layoutStore.moveDevice(rackId, deviceIndex, newPosition);
     ondevicemove?.(event);
+    if (getStorageMode() === "server" && !uiStore.readOnly) {
+      void handleSaveToServer(false);
+    }
   }
 
   function handleDeviceMoveRack(
@@ -605,6 +612,9 @@
       face,
     );
     ondevicemoverack?.(event);
+    if (getStorageMode() === "server" && !uiStore.readOnly) {
+      void handleSaveToServer(false);
+    }
   }
 </script>
 
