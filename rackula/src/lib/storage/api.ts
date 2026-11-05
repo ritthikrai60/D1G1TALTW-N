@@ -631,7 +631,18 @@ export async function saveLayoutToServer(
 
   const headers: Record<string, string> = { "Content-Type": "text/yaml" };
   const adminToken = typeof window !== "undefined"
-    ? (new URLSearchParams(window.location.search).get("token") || sessionStorage.getItem("dt_admin_token"))
+    ? (() => {
+        const queryToken = new URLSearchParams(window.location.search).get("token");
+        if (queryToken) {
+          try { sessionStorage.setItem("dt_admin_token", queryToken); } catch {}
+          return queryToken;
+        }
+        try {
+          return sessionStorage.getItem("dt_admin_token") || localStorage.getItem("dt_admin_token");
+        } catch {
+          return null;
+        }
+      })()
     : null;
   if (adminToken) {
     headers["Authorization"] = `Bearer ${adminToken}`;

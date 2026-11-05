@@ -778,8 +778,24 @@ export function createApiRouterAndWs() {
   router.put('/layouts/:id', requireAdmin, (req, res) => {
     const rackId = req.params.id;
     let rack = getDeviceById(rackId);
-    if (!rack || rack.modelType !== 'server_rack' || !rack.isPlaced) {
-      return res.status(404).json({ error: 'Rack not found' });
+    if (!rack) {
+      const defaultRoom = getRooms()[0];
+      const floorIdx = defaultRoom ? Number(defaultRoom.floorIdx ?? 0) : 0;
+      rack = upsertDevice({
+        id: rackId,
+        name: 'Server Rack',
+        modelType: 'server_rack',
+        category: 'Rack',
+        isPlaced: true,
+        floorIdx,
+        roomId: defaultRoom?.id || '',
+        roomNumber: defaultRoom?.roomNumber || '',
+        position: [0, 0, 0],
+        rackConfig: { rackHeight: 42, manufacturer: 'Generic' },
+      });
+    } else if (rack.modelType === 'server_rack' && !rack.isPlaced) {
+      rack.isPlaced = true;
+      upsertDevice(rack);
     }
 
     let parsed;

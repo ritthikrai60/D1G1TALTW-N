@@ -75,6 +75,8 @@ export function getStorageMode(): StorageMode {
   if (window.__RACKULA_CONFIG__?.storage === "server") return "server";
   // Config is browser or absent: honour a user opt-in upgrade to server.
   if (getStorageModeOverride() === "server") return "server";
+  // Sub-app deployment in Digital Twin: default to server mode
+  if (window.location.pathname.startsWith("/rackula")) return "server";
   return "browser";
 }
 

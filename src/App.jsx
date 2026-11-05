@@ -291,13 +291,13 @@ export default function App() {
     const rackId = selectedRackId || serverRacks[0]?.id;
     if (!rackId) return "";
     const params = new URLSearchParams({ layout: rackId });
-    if (isAdminRoute && adminAuthenticated && adminToken) {
+    if (isAdminRoute && adminToken) {
       params.set("token", adminToken);
     } else {
       params.set("readonly", "1");
     }
     return `/rackula/?${params.toString()}`;
-  }, [selectedRackId, serverRacks, isAdminRoute, adminAuthenticated, adminToken])
+  }, [selectedRackId, serverRacks, isAdminRoute, adminToken])
   const [loginDialogOpen, setLoginDialogOpen] = useState(false)
   const [passwordInput, setPasswordInput] = useState("")
   const [loginError, setLoginError] = useState("")
