@@ -683,7 +683,7 @@
     return () => window.removeEventListener("resize", onResize);
   });
 
-  // Listen for parent Digital Twin events (e.g. rack removed/unplaced from 3D)
+  // Listen for parent Digital Twin events (e.g. rack removed/unplaced or live updated from 3D)
   onMount(() => {
     const handleParentMessage = (event: MessageEvent) => {
       if (event.data?.type === "LUDUS_RACK_REMOVED") {
@@ -699,6 +699,22 @@
           // ignore storage errors
         }
         layoutStore.resetLayout();
+      } else if (event.data?.type === "LUDUS_RACK_UPDATED") {
+        const targetLayoutId =
+          event.data.rackId || new URLSearchParams(window.location.search).get("layout");
+        if (targetLayoutId) {
+          loadSavedLayout(targetLayoutId)
+            .then(({ layout, images, failedImagesCount, failedKeys, updatedAt }) => {
+              setServerBaseUpdatedAt(updatedAt ?? null);
+              finalizeLayoutLoad(layout, images, failedImagesCount, {
+                successMessage: null,
+                failedKeys,
+              });
+            })
+            .catch(() => {
+              // silent catch
+            });
+        }
       }
     };
     window.addEventListener("message", handleParentMessage);

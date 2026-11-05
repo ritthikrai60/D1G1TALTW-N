@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Viewer Material 3 Controls**:
   - Segmented quick floor selector (`All`, `F1`, `F2`, `F3`, `F4`) with active indicator.
   - Material 3 reset view and camera tools.
+- **Real-Time Cross-Context Sync & Resilience**:
+  - `WebSocket Auto-Reconnect`: Added automatic reconnection with exponential backoff (1s up to 10s max cap) in `src/App.jsx` on connection drops or sleep events.
+  - `Live Rackula Iframe Sync`: Integrated bi-directional `LUDUS_RACK_UPDATED` message bridge and debounced auto-reload in `src/App.jsx` and `rackula/src/App.svelte`, allowing Viewer and Admin views to update immediately without manual refresh.
+  - `Targeted Backend Rack Broadcasts`: Added `rack_updated` event broadcasting with `rackId` in `server/api.js` on rack mount, unmount, config change, and layout PUT.
 
 ### Changed
 - **Rollup Vendor Splitting**: Configured `manualChunks` in `vite.config.js` to split large bundles into `vendor-three` (~644 KB), `vendor-ui` (~111 KB), and `vendor-icons` (~29 KB), optimizing initial page load and caching.

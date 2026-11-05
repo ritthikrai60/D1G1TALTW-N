@@ -3,15 +3,15 @@
   "metadata": {
     "projectName": "LUDUS Building Digital Twin & Network Command",
     "buildingModel": "LUDUS_Building_No_Glass.igz",
-    "updatedAt": "2026-11-05T14:27:36.303Z",
+    "updatedAt": "2026-11-05T15:14:54.178Z",
     "schemaVersion": "2.0.0",
     "totalNetworks": 5,
-    "totalRooms": 2,
+    "totalRooms": 1,
     "totalDevices": 42,
-    "placedDevices": 0,
-    "unplacedDevices": 42,
-    "onlinePlacedDevices": 0,
-    "onlineTotalDevices": 35,
+    "placedDevices": 1,
+    "unplacedDevices": 41,
+    "onlinePlacedDevices": 1,
+    "onlineTotalDevices": 1,
     "defaultViewState": {
       "showGlass": true,
       "showRooms": true,
@@ -149,353 +149,16 @@
       },
       "createdAt": "2026-11-05T08:41:14.351Z",
       "updatedAt": "2026-11-05T08:41:25.478Z"
-    },
-    {
-      "id": "ROOM-MW2KEBPQ-85U",
-      "roomNumber": "101",
-      "name": "Room 101",
-      "roomType": "NOC",
-      "floorIdx": 1,
-      "floorLabel": "01_First_Floor",
-      "color": "#38bdf8",
-      "vlan": "",
-      "description": "",
-      "zoneSize": {
-        "width": 3,
-        "depth": 5
-      },
-      "polygon": [
-        {
-          "x": -8.5,
-          "z": 2.5
-        },
-        {
-          "x": -6.5,
-          "z": 2
-        },
-        {
-          "x": -5.5,
-          "z": 3.5
-        },
-        {
-          "x": -5.5,
-          "z": 4.5
-        },
-        {
-          "x": -7.5,
-          "z": 7
-        }
-      ],
-      "position": {
-        "x": -6.7,
-        "y": 5.6,
-        "z": 3.9
-      },
-      "createdAt": "2026-11-05T08:28:29.030Z",
-      "updatedAt": "2026-11-05T08:28:29.030Z"
     }
   ],
   "devices": [
-    {
-      "id": "DEV-192-168-110-50",
-      "name": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
-      "category": "Router",
-      "customType": "",
-      "color": "#f97316",
-      "status": "Online",
-      "value": "4 Ports (80,443,1883,8883)",
-      "ip": "192.168.110.50",
-      "subnet": "192.168.110.0/24",
-      "mac": "C4:B2:5B:F3:C4:9C",
-      "vendor": "Huawei / Ruijie Enterprise Gateway",
-      "hostname": "host-192-168-110-50.ludus.lan",
-      "osFirmware": "Enterprise Gateway OS / HTTPS + MQTT Broker (1883/8883)",
-      "serialNumber": "SN-LUDUS-F3C49C",
-      "assetTag": "AST-2026-110-50",
-      "connectedSwitch": "WAN Internet Upstream (1.1.1.1)",
-      "switchPort": "WAN1 (1000Base-T)",
-      "vlan": "VLAN 110 (Infra)",
-      "isPlaced": false,
-      "floorIdx": null,
-      "roomId": "",
-      "roomNumber": "",
-      "position": null,
-      "modelType": "pin",
-      "rotationY": 0,
-      "parentRackId": "",
-      "uPosition": null,
-      "uHeight": 1,
-      "rackFace": "front",
-      "isFullDepth": true,
-      "rackConfig": {},
-      "hierarchy": {
-        "tier": 1,
-        "role": "Core Gateway / Router",
-        "parentDeviceId": "WAN-ROOT",
-        "parentDeviceName": "WAN Internet Upstream (1.1.1.1)",
-        "uplinkPort": "WAN1 (1000Base-T)",
-        "childrenIds": [
-          "DEV-192-168-110-52",
-          "DEV-192-168-110-53",
-          "DEV-192-168-110-54",
-          "DEV-192-168-110-58",
-          "DEV-192-168-110-69",
-          "DEV-192-168-110-134",
-          "DEV-192-168-111-93",
-          "DEV-192-168-111-100",
-          "DEV-192-168-111-104",
-          "DEV-192-168-111-105",
-          "DEV-192-168-111-106",
-          "DEV-192-168-111-197"
-        ],
-        "path": [
-          "WAN-ROOT",
-          "DEV-192-168-110-50"
-        ]
-      },
-      "openPorts": [
-        {
-          "port": 80,
-          "isWeb": true,
-          "state": "open",
-          "title": "",
-          "banner": "HTTP 200",
-          "scheme": "http",
-          "service": "HTTP",
-          "protocol": "tcp",
-          "latencyMs": 193
-        },
-        {
-          "port": 443,
-          "isWeb": true,
-          "state": "open",
-          "title": "",
-          "banner": "HTTP 200",
-          "scheme": "https",
-          "service": "HTTPS",
-          "protocol": "tcp",
-          "latencyMs": 198
-        },
-        {
-          "port": 1883,
-          "isWeb": false,
-          "state": "open",
-          "title": "",
-          "banner": "",
-          "scheme": "http",
-          "service": "MQTT Broker (IoT)",
-          "protocol": "tcp",
-          "latencyMs": 197
-        },
-        {
-          "port": 8883,
-          "isWeb": false,
-          "state": "open",
-          "title": "",
-          "banner": "",
-          "scheme": "http",
-          "service": "MQTTS (Secure IoT)",
-          "protocol": "tcp",
-          "latencyMs": 156
-        }
-      ],
-      "snmpInfo": {},
-      "switchInterfaces": [
-        {
-          "poe": "Off",
-          "name": "GE1/0/1",
-          "vlan": "VLAN 110",
-          "speed": "1000 Mbps",
-          "status": "up",
-          "portIndex": 1
-        },
-        {
-          "poe": "Off",
-          "name": "GE1/0/2",
-          "vlan": "VLAN 110",
-          "speed": "1000 Mbps",
-          "status": "up",
-          "portIndex": 2
-        },
-        {
-          "poe": "Off",
-          "name": "GE1/0/3",
-          "vlan": "VLAN 110",
-          "speed": "1000 Mbps",
-          "status": "up",
-          "portIndex": 3
-        },
-        {
-          "poe": "Off",
-          "name": "GE1/0/4",
-          "vlan": "VLAN 110",
-          "speed": "1000 Mbps",
-          "status": "up",
-          "portIndex": 4
-        },
-        {
-          "poe": "Off",
-          "name": "GE1/0/5",
-          "vlan": "VLAN 110",
-          "speed": "1000 Mbps",
-          "status": "up",
-          "portIndex": 5
-        },
-        {
-          "poe": "Off",
-          "name": "GE1/0/6",
-          "vlan": "VLAN 110",
-          "speed": "1000 Mbps",
-          "status": "down",
-          "portIndex": 6
-        },
-        {
-          "poe": "Off",
-          "name": "GE1/0/7",
-          "vlan": "VLAN 110",
-          "speed": "10G SFP+",
-          "status": "down",
-          "portIndex": 7
-        },
-        {
-          "poe": "Off",
-          "name": "GE1/0/8",
-          "vlan": "VLAN 110",
-          "speed": "10G SFP+",
-          "status": "down",
-          "portIndex": 8
-        }
-      ],
-      "credentials": {
-        "username": "admin",
-        "password": "admin123",
-        "loginUrl": "https://192.168.110.50:443",
-        "defaultPort": "443",
-        "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
-      },
-      "latencyMs": 3,
-      "latencyHistory": [
-        {
-          "t": "2026-11-05T11:59:27.211Z",
-          "ms": 2
-        },
-        {
-          "t": "2026-11-05T12:00:12.276Z",
-          "ms": 3
-        },
-        {
-          "t": "2026-11-05T12:00:57.199Z",
-          "ms": 9
-        },
-        {
-          "t": "2026-11-05T12:01:42.227Z",
-          "ms": 7
-        },
-        {
-          "t": "2026-11-05T12:02:27.236Z",
-          "ms": 9
-        },
-        {
-          "t": "2026-11-05T12:03:12.237Z",
-          "ms": 3
-        },
-        {
-          "t": "2026-11-05T12:03:57.193Z",
-          "ms": 3
-        },
-        {
-          "t": "2026-11-05T12:04:42.302Z",
-          "ms": 3
-        },
-        {
-          "t": "2026-11-05T12:05:27.253Z",
-          "ms": 4
-        },
-        {
-          "t": "2026-11-05T12:06:12.229Z",
-          "ms": 10
-        },
-        {
-          "t": "2026-11-05T12:06:57.211Z",
-          "ms": 3
-        },
-        {
-          "t": "2026-11-05T12:07:42.219Z",
-          "ms": 2
-        },
-        {
-          "t": "2026-11-05T12:08:27.179Z",
-          "ms": 3
-        },
-        {
-          "t": "2026-11-05T12:09:12.180Z",
-          "ms": 3
-        },
-        {
-          "t": "2026-11-05T12:09:57.187Z",
-          "ms": 9
-        },
-        {
-          "t": "2026-11-05T12:10:42.224Z",
-          "ms": 9
-        },
-        {
-          "t": "2026-11-05T12:11:27.282Z",
-          "ms": 20
-        },
-        {
-          "t": "2026-11-05T12:12:12.347Z",
-          "ms": 3
-        },
-        {
-          "t": "2026-11-05T12:12:57.328Z",
-          "ms": 14
-        },
-        {
-          "t": "2026-11-05T12:13:42.373Z",
-          "ms": 3
-        }
-      ],
-      "lastSeen": "2026-11-05T12:13:42.373Z",
-      "updatedAt": "2026-11-05T12:13:42.373Z",
-      "networkInfo": {
-        "ip": "192.168.110.50",
-        "subnet": "192.168.110.0/24",
-        "mac": "C4:B2:5B:F3:C4:9C",
-        "vendor": "Huawei / Ruijie Enterprise Gateway",
-        "hostname": "host-192-168-110-50.ludus.lan",
-        "vlan": "VLAN 110 (Infra)",
-        "connectedSwitch": "WAN Internet Upstream (1.1.1.1)",
-        "switchPort": "WAN1 (1000Base-T)"
-      },
-      "hardwareInfo": {
-        "vendor": "Huawei / Ruijie Enterprise Gateway",
-        "osFirmware": "Enterprise Gateway OS / HTTPS + MQTT Broker (1883/8883)",
-        "serialNumber": "SN-LUDUS-F3C49C",
-        "assetTag": "AST-2026-110-50"
-      },
-      "spatialInfo": {
-        "isPlaced": false,
-        "building": "LUDUS_Building_No_Glass",
-        "floorIdx": null,
-        "floorLabel": null,
-        "roomId": "",
-        "roomNumber": "",
-        "position": null
-      },
-      "telemetry": {
-        "status": "Online",
-        "latencyMs": 3,
-        "lastSeen": "2026-11-05T12:13:42.373Z"
-      }
-    },
     {
       "id": "DEV-192-168-110-51",
       "name": "Wireless-AP-01 (192.168.110.51)",
       "category": "Access Point",
       "customType": "",
       "color": "#06b6d4",
-      "status": "Online",
+      "status": "Offline",
       "value": "2 Ports (80,443)",
       "ip": "192.168.110.51",
       "subnet": "192.168.110.0/24",
@@ -535,7 +198,7 @@
         ],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-52",
           "DEV-192-168-110-51"
         ]
@@ -573,7 +236,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 10,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:27.258Z",
@@ -657,7 +320,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:42.471Z",
-      "updatedAt": "2026-11-05T12:13:42.471Z",
+      "updatedAt": "2026-11-05T15:14:36.706Z",
       "networkInfo": {
         "ip": "192.168.110.51",
         "subnet": "192.168.110.0/24",
@@ -684,8 +347,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 10,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:42.471Z"
       }
     },
@@ -695,7 +358,7 @@
       "category": "Switch",
       "customType": "",
       "color": "#38bdf8",
-      "status": "Online",
+      "status": "Offline",
       "value": "3 Ports (80,443,6379)",
       "ip": "192.168.110.52",
       "subnet": "192.168.110.0/24",
@@ -705,7 +368,7 @@
       "osFirmware": "HTTP 200",
       "serialNumber": "SN-LUDUS-F0A5EA",
       "assetTag": "AST-2026-110-52",
-      "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+      "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
       "switchPort": "SFP+-1/0/1",
       "vlan": "VLAN 110 (Infra)",
       "isPlaced": false,
@@ -724,8 +387,8 @@
       "hierarchy": {
         "tier": 2,
         "role": "Distribution / PoE Switch",
-        "parentDeviceId": "DEV-192-168-110-50",
-        "parentDeviceName": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "parentDeviceId": "DEV-192-168-110-69",
+        "parentDeviceName": "Distribution-Gateway-110-69 (Secondary Router)",
         "uplinkPort": "SFP+-1/0/1",
         "childrenIds": [
           "DEV-192-168-110-51",
@@ -735,7 +398,7 @@
         ],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-52"
         ]
       },
@@ -976,7 +639,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 3,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:27.303Z",
@@ -1060,7 +723,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:42.591Z",
-      "updatedAt": "2026-11-05T12:13:42.591Z",
+      "updatedAt": "2026-11-05T15:14:38.706Z",
       "networkInfo": {
         "ip": "192.168.110.52",
         "subnet": "192.168.110.0/24",
@@ -1068,7 +731,7 @@
         "vendor": "Ruijie / Reyee Managed PoE Switch",
         "hostname": "host-192-168-110-52.ludus.lan",
         "vlan": "VLAN 110 (Infra)",
-        "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
         "switchPort": "SFP+-1/0/1"
       },
       "hardwareInfo": {
@@ -1087,8 +750,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 3,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:42.591Z"
       }
     },
@@ -1098,7 +761,7 @@
       "category": "Switch",
       "customType": "",
       "color": "#38bdf8",
-      "status": "Online",
+      "status": "Offline",
       "value": "3 Ports (80,443,6379)",
       "ip": "192.168.110.53",
       "subnet": "192.168.110.0/24",
@@ -1108,7 +771,7 @@
       "osFirmware": "HTTP 200",
       "serialNumber": "SN-LUDUS-F0A544",
       "assetTag": "AST-2026-110-53",
-      "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+      "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
       "switchPort": "SFP+-1/0/2",
       "vlan": "VLAN 110 (Infra)",
       "isPlaced": false,
@@ -1127,8 +790,8 @@
       "hierarchy": {
         "tier": 2,
         "role": "Distribution / PoE Switch",
-        "parentDeviceId": "DEV-192-168-110-50",
-        "parentDeviceName": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "parentDeviceId": "DEV-192-168-110-69",
+        "parentDeviceName": "Distribution-Gateway-110-69 (Secondary Router)",
         "uplinkPort": "SFP+-1/0/2",
         "childrenIds": [
           "DEV-192-168-110-70",
@@ -1138,7 +801,7 @@
         ],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-53"
         ]
       },
@@ -1379,7 +1042,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 3,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:27.350Z",
@@ -1463,7 +1126,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:42.691Z",
-      "updatedAt": "2026-11-05T12:13:42.691Z",
+      "updatedAt": "2026-11-05T15:14:40.694Z",
       "networkInfo": {
         "ip": "192.168.110.53",
         "subnet": "192.168.110.0/24",
@@ -1471,7 +1134,7 @@
         "vendor": "Ruijie / Reyee Managed PoE Switch",
         "hostname": "host-192-168-110-53.ludus.lan",
         "vlan": "VLAN 110 (Infra)",
-        "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
         "switchPort": "SFP+-1/0/2"
       },
       "hardwareInfo": {
@@ -1490,8 +1153,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 3,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:42.691Z"
       }
     },
@@ -1501,7 +1164,7 @@
       "category": "Switch",
       "customType": "",
       "color": "#38bdf8",
-      "status": "Online",
+      "status": "Offline",
       "value": "3 Ports (80,443,6379)",
       "ip": "192.168.110.54",
       "subnet": "192.168.110.0/24",
@@ -1511,7 +1174,7 @@
       "osFirmware": "HTTP 200",
       "serialNumber": "SN-LUDUS-F0A5DC",
       "assetTag": "AST-2026-110-54",
-      "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+      "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
       "switchPort": "SFP+-1/0/3",
       "vlan": "VLAN 110 (Infra)",
       "isPlaced": false,
@@ -1530,8 +1193,8 @@
       "hierarchy": {
         "tier": 2,
         "role": "Distribution / PoE Switch",
-        "parentDeviceId": "DEV-192-168-110-50",
-        "parentDeviceName": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "parentDeviceId": "DEV-192-168-110-69",
+        "parentDeviceName": "Distribution-Gateway-110-69 (Secondary Router)",
         "uplinkPort": "SFP+-1/0/3",
         "childrenIds": [
           "DEV-192-168-110-71",
@@ -1540,7 +1203,7 @@
         ],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-54"
         ]
       },
@@ -1781,7 +1444,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 3,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:27.430Z",
@@ -1865,7 +1528,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:42.771Z",
-      "updatedAt": "2026-11-05T12:13:42.771Z",
+      "updatedAt": "2026-11-05T15:14:42.688Z",
       "networkInfo": {
         "ip": "192.168.110.54",
         "subnet": "192.168.110.0/24",
@@ -1873,7 +1536,7 @@
         "vendor": "Ruijie / Reyee Managed PoE Switch",
         "hostname": "host-192-168-110-54.ludus.lan",
         "vlan": "VLAN 110 (Infra)",
-        "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
         "switchPort": "SFP+-1/0/3"
       },
       "hardwareInfo": {
@@ -1892,8 +1555,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 3,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:42.771Z"
       }
     },
@@ -1903,7 +1566,7 @@
       "category": "Switch",
       "customType": "",
       "color": "#38bdf8",
-      "status": "Online",
+      "status": "Offline",
       "value": "3 Ports (80,443,6379)",
       "ip": "192.168.110.58",
       "subnet": "192.168.110.0/24",
@@ -1913,7 +1576,7 @@
       "osFirmware": "HTTP 200",
       "serialNumber": "SN-LUDUS-6C8926",
       "assetTag": "AST-2026-110-58",
-      "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+      "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
       "switchPort": "SFP+-1/0/4",
       "vlan": "VLAN 110 (Infra)",
       "isPlaced": false,
@@ -1932,8 +1595,8 @@
       "hierarchy": {
         "tier": 2,
         "role": "Distribution / PoE Switch",
-        "parentDeviceId": "DEV-192-168-110-50",
-        "parentDeviceName": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "parentDeviceId": "DEV-192-168-110-69",
+        "parentDeviceName": "Distribution-Gateway-110-69 (Secondary Router)",
         "uplinkPort": "SFP+-1/0/4",
         "childrenIds": [
           "DEV-192-168-110-79",
@@ -1941,7 +1604,7 @@
         ],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-58"
         ]
       },
@@ -2182,7 +1845,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 10,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:27.480Z",
@@ -2266,7 +1929,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:42.956Z",
-      "updatedAt": "2026-11-05T12:13:42.956Z",
+      "updatedAt": "2026-11-05T15:14:44.710Z",
       "networkInfo": {
         "ip": "192.168.110.58",
         "subnet": "192.168.110.0/24",
@@ -2274,7 +1937,7 @@
         "vendor": "Ruijie / Network Infrastructure",
         "hostname": "host-192-168-110-58.ludus.lan",
         "vlan": "VLAN 110 (Infra)",
-        "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
         "switchPort": "SFP+-1/0/4"
       },
       "hardwareInfo": {
@@ -2293,8 +1956,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 10,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:42.956Z"
       }
     },
@@ -2304,7 +1967,7 @@
       "category": "Router",
       "customType": "",
       "color": "#f97316",
-      "status": "Online",
+      "status": "Offline",
       "value": "3 Ports (80,443,6379)",
       "ip": "192.168.110.69",
       "subnet": "192.168.110.0/24",
@@ -2314,7 +1977,7 @@
       "osFirmware": "HTTP 200",
       "serialNumber": "SN-LUDUS-664220",
       "assetTag": "AST-2026-110-69",
-      "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+      "connectedSwitch": "WAN Internet Upstream (1.1.1.1)",
       "switchPort": "SFP+-1/0/1",
       "vlan": "VLAN 110 (Infra)",
       "isPlaced": false,
@@ -2333,13 +1996,24 @@
       "hierarchy": {
         "tier": 1,
         "role": "Core Gateway / Router",
-        "parentDeviceId": "DEV-192-168-110-50",
-        "parentDeviceName": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "parentDeviceId": "WAN-ROOT",
+        "parentDeviceName": "WAN Internet Upstream (1.1.1.1)",
         "uplinkPort": "SFP+-1/0/1",
-        "childrenIds": [],
+        "childrenIds": [
+          "DEV-192-168-110-52",
+          "DEV-192-168-110-53",
+          "DEV-192-168-110-54",
+          "DEV-192-168-110-58",
+          "DEV-192-168-110-134",
+          "DEV-192-168-111-93",
+          "DEV-192-168-111-100",
+          "DEV-192-168-111-104",
+          "DEV-192-168-111-105",
+          "DEV-192-168-111-106",
+          "DEV-192-168-111-197"
+        ],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
           "DEV-192-168-110-69"
         ]
       },
@@ -2452,7 +2126,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 18,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:27.528Z",
@@ -2536,7 +2210,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.067Z",
-      "updatedAt": "2026-11-05T12:13:43.067Z",
+      "updatedAt": "2026-11-05T15:14:46.696Z",
       "networkInfo": {
         "ip": "192.168.110.69",
         "subnet": "192.168.110.0/24",
@@ -2544,7 +2218,7 @@
         "vendor": "Huawei / Ruijie Enterprise Gateway",
         "hostname": "host-192-168-110-69.ludus.lan",
         "vlan": "VLAN 110 (Infra)",
-        "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "connectedSwitch": "WAN Internet Upstream (1.1.1.1)",
         "switchPort": "SFP+-1/0/1"
       },
       "hardwareInfo": {
@@ -2563,8 +2237,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 18,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:43.067Z"
       }
     },
@@ -2574,7 +2248,7 @@
       "category": "Access Point",
       "customType": "",
       "color": "#06b6d4",
-      "status": "Online",
+      "status": "Offline",
       "value": "2 Ports (80,443)",
       "ip": "192.168.110.70",
       "subnet": "192.168.110.0/24",
@@ -2612,7 +2286,7 @@
         ],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-53",
           "DEV-192-168-110-70"
         ]
@@ -2650,7 +2324,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 4,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:27.581Z",
@@ -2734,7 +2408,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.119Z",
-      "updatedAt": "2026-11-05T12:13:43.119Z",
+      "updatedAt": "2026-11-05T15:14:48.686Z",
       "networkInfo": {
         "ip": "192.168.110.70",
         "subnet": "192.168.110.0/24",
@@ -2761,8 +2435,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 4,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:43.119Z"
       }
     },
@@ -2772,7 +2446,7 @@
       "category": "Access Point",
       "customType": "",
       "color": "#06b6d4",
-      "status": "Online",
+      "status": "Offline",
       "value": "2 Ports (80,443)",
       "ip": "192.168.110.71",
       "subnet": "192.168.110.0/24",
@@ -2810,7 +2484,7 @@
         ],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-54",
           "DEV-192-168-110-71"
         ]
@@ -2848,7 +2522,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 6,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:27.631Z",
@@ -2932,7 +2606,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.181Z",
-      "updatedAt": "2026-11-05T12:13:43.181Z",
+      "updatedAt": "2026-11-05T15:14:50.702Z",
       "networkInfo": {
         "ip": "192.168.110.71",
         "subnet": "192.168.110.0/24",
@@ -2959,8 +2633,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 6,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:43.181Z"
       }
     },
@@ -2970,7 +2644,7 @@
       "category": "Access Point",
       "customType": "",
       "color": "#06b6d4",
-      "status": "Online",
+      "status": "Offline",
       "value": "2 Ports (80,443)",
       "ip": "192.168.110.79",
       "subnet": "192.168.110.0/24",
@@ -3008,7 +2682,7 @@
         ],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-58",
           "DEV-192-168-110-79"
         ]
@@ -3046,7 +2720,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 3,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:27.695Z",
@@ -3130,7 +2804,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.231Z",
-      "updatedAt": "2026-11-05T12:13:43.231Z",
+      "updatedAt": "2026-11-05T15:14:52.677Z",
       "networkInfo": {
         "ip": "192.168.110.79",
         "subnet": "192.168.110.0/24",
@@ -3157,8 +2831,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 3,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:43.231Z"
       }
     },
@@ -3168,7 +2842,7 @@
       "category": "Access Point",
       "customType": "",
       "color": "#06b6d4",
-      "status": "Online",
+      "status": "Offline",
       "value": "2 Ports (80,443)",
       "ip": "192.168.110.93",
       "subnet": "192.168.110.0/24",
@@ -3206,7 +2880,7 @@
         ],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-134",
           "DEV-192-168-110-93"
         ]
@@ -3244,7 +2918,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 3,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:27.754Z",
@@ -3328,7 +3002,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.279Z",
-      "updatedAt": "2026-11-05T12:13:43.279Z",
+      "updatedAt": "2026-11-05T15:14:09.687Z",
       "networkInfo": {
         "ip": "192.168.110.93",
         "subnet": "192.168.110.0/24",
@@ -3355,8 +3029,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 3,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:43.279Z"
       }
     },
@@ -3366,7 +3040,7 @@
       "category": "Access Point",
       "customType": "",
       "color": "#06b6d4",
-      "status": "Online",
+      "status": "Offline",
       "value": "2 Ports (80,443)",
       "ip": "192.168.110.98",
       "subnet": "192.168.110.0/24",
@@ -3404,7 +3078,7 @@
         ],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-52",
           "DEV-192-168-110-98"
         ]
@@ -3442,7 +3116,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 3,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:27.849Z",
@@ -3526,7 +3200,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.332Z",
-      "updatedAt": "2026-11-05T12:13:43.332Z",
+      "updatedAt": "2026-11-05T15:14:11.679Z",
       "networkInfo": {
         "ip": "192.168.110.98",
         "subnet": "192.168.110.0/24",
@@ -3553,8 +3227,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 3,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:43.332Z"
       }
     },
@@ -3564,7 +3238,7 @@
       "category": "Sensor",
       "customType": "",
       "color": "#14b8a6",
-      "status": "Online",
+      "status": "Offline",
       "value": "4 Ports (515,3000,8008,8443)",
       "ip": "192.168.110.123",
       "subnet": "192.168.110.0/24",
@@ -3599,7 +3273,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-53",
           "DEV-192-168-110-70",
           "DEV-192-168-110-123"
@@ -3660,7 +3334,7 @@
         "defaultPort": "3000",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 37,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:54:57.946Z",
@@ -3744,7 +3418,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.420Z",
-      "updatedAt": "2026-11-05T12:13:43.420Z",
+      "updatedAt": "2026-11-05T15:14:13.685Z",
       "networkInfo": {
         "ip": "192.168.110.123",
         "subnet": "192.168.110.0/24",
@@ -3771,8 +3445,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 37,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:43.420Z"
       }
     },
@@ -3782,7 +3456,7 @@
       "category": "Access Point",
       "customType": "",
       "color": "#06b6d4",
-      "status": "Online",
+      "status": "Offline",
       "value": "4 Ports (515,3000,8008,8443)",
       "ip": "192.168.110.124",
       "subnet": "192.168.110.0/24",
@@ -3817,7 +3491,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-53",
           "DEV-192-168-110-124"
         ]
@@ -3877,7 +3551,7 @@
         "defaultPort": "3000",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 58,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:57:13.228Z",
@@ -3961,7 +3635,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.524Z",
-      "updatedAt": "2026-11-05T12:13:43.524Z",
+      "updatedAt": "2026-11-05T15:14:15.701Z",
       "networkInfo": {
         "ip": "192.168.110.124",
         "subnet": "192.168.110.0/24",
@@ -3988,8 +3662,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 58,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:43.524Z"
       }
     },
@@ -3999,7 +3673,7 @@
       "category": "Sensor",
       "customType": "",
       "color": "#14b8a6",
-      "status": "Online",
+      "status": "Offline",
       "value": "4 Ports (515,3000,8008,8443)",
       "ip": "192.168.110.125",
       "subnet": "192.168.110.0/24",
@@ -4034,7 +3708,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-54",
           "DEV-192-168-110-71",
           "DEV-192-168-110-125"
@@ -4095,7 +3769,7 @@
         "defaultPort": "3000",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 62,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:56:28.181Z",
@@ -4179,7 +3853,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.645Z",
-      "updatedAt": "2026-11-05T12:13:43.645Z",
+      "updatedAt": "2026-11-05T15:14:17.702Z",
       "networkInfo": {
         "ip": "192.168.110.125",
         "subnet": "192.168.110.0/24",
@@ -4206,8 +3880,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 62,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:43.645Z"
       }
     },
@@ -4217,7 +3891,7 @@
       "category": "Access Point",
       "customType": "",
       "color": "#06b6d4",
-      "status": "Online",
+      "status": "Offline",
       "value": "4 Ports (515,3000,8008,8443)",
       "ip": "192.168.110.128",
       "subnet": "192.168.110.0/24",
@@ -4252,7 +3926,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-54",
           "DEV-192-168-110-128"
         ]
@@ -4312,7 +3986,7 @@
         "defaultPort": "3000",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 5,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:30.219Z",
@@ -4396,7 +4070,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.710Z",
-      "updatedAt": "2026-11-05T12:13:43.710Z",
+      "updatedAt": "2026-11-05T15:14:19.690Z",
       "networkInfo": {
         "ip": "192.168.110.128",
         "subnet": "192.168.110.0/24",
@@ -4423,8 +4097,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 5,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:43.710Z"
       }
     },
@@ -4434,7 +4108,7 @@
       "category": "Access Point",
       "customType": "",
       "color": "#06b6d4",
-      "status": "Online",
+      "status": "Offline",
       "value": "4 Ports (515,3000,8008,8443)",
       "ip": "192.168.110.129",
       "subnet": "192.168.110.0/24",
@@ -4469,7 +4143,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-58",
           "DEV-192-168-110-129"
         ]
@@ -4529,7 +4203,7 @@
         "defaultPort": "3000",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 6,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:30.263Z",
@@ -4613,7 +4287,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.764Z",
-      "updatedAt": "2026-11-05T12:13:43.764Z",
+      "updatedAt": "2026-11-05T15:14:21.695Z",
       "networkInfo": {
         "ip": "192.168.110.129",
         "subnet": "192.168.110.0/24",
@@ -4640,8 +4314,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 6,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:43.764Z"
       }
     },
@@ -4651,7 +4325,7 @@
       "category": "Access Point",
       "customType": "",
       "color": "#06b6d4",
-      "status": "Online",
+      "status": "Offline",
       "value": "4 Ports (515,3000,8008,8443)",
       "ip": "192.168.110.130",
       "subnet": "192.168.110.0/24",
@@ -4686,7 +4360,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-134",
           "DEV-192-168-110-130"
         ]
@@ -4746,7 +4420,7 @@
         "defaultPort": "3000",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 6,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:57:57.989Z",
@@ -4830,7 +4504,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.815Z",
-      "updatedAt": "2026-11-05T12:13:43.815Z",
+      "updatedAt": "2026-11-05T15:14:23.701Z",
       "networkInfo": {
         "ip": "192.168.110.130",
         "subnet": "192.168.110.0/24",
@@ -4857,8 +4531,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 6,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:43.815Z"
       }
     },
@@ -4868,7 +4542,7 @@
       "category": "Access Point",
       "customType": "",
       "color": "#06b6d4",
-      "status": "Online",
+      "status": "Offline",
       "value": "4 Ports (515,3000,8008,8443)",
       "ip": "192.168.110.132",
       "subnet": "192.168.110.0/24",
@@ -4903,7 +4577,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-52",
           "DEV-192-168-110-132"
         ]
@@ -4963,7 +4637,7 @@
         "defaultPort": "3000",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 44,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:30.348Z",
@@ -5047,7 +4721,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.908Z",
-      "updatedAt": "2026-11-05T12:13:43.908Z",
+      "updatedAt": "2026-11-05T15:14:25.687Z",
       "networkInfo": {
         "ip": "192.168.110.132",
         "subnet": "192.168.110.0/24",
@@ -5074,8 +4748,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 44,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:43.908Z"
       }
     },
@@ -5085,7 +4759,7 @@
       "category": "Switch",
       "customType": "",
       "color": "#38bdf8",
-      "status": "Online",
+      "status": "Offline",
       "value": "2 Ports (80,443)",
       "ip": "192.168.110.134",
       "subnet": "192.168.110.0/24",
@@ -5095,7 +4769,7 @@
       "osFirmware": "HTTP 200",
       "serialNumber": "SN-LUDUS-D49E2E",
       "assetTag": "AST-2026-110-134",
-      "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+      "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
       "switchPort": "SFP+-1/0/5",
       "vlan": "VLAN 110 (Infra)",
       "isPlaced": false,
@@ -5114,8 +4788,8 @@
       "hierarchy": {
         "tier": 2,
         "role": "Distribution / PoE Switch",
-        "parentDeviceId": "DEV-192-168-110-50",
-        "parentDeviceName": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "parentDeviceId": "DEV-192-168-110-69",
+        "parentDeviceName": "Distribution-Gateway-110-69 (Secondary Router)",
         "uplinkPort": "SFP+-1/0/5",
         "childrenIds": [
           "DEV-192-168-110-93",
@@ -5123,7 +4797,7 @@
         ],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-134"
         ]
       },
@@ -5353,7 +5027,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 3,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:30.423Z",
@@ -5437,7 +5111,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.958Z",
-      "updatedAt": "2026-11-05T12:13:43.958Z",
+      "updatedAt": "2026-11-05T15:14:27.698Z",
       "networkInfo": {
         "ip": "192.168.110.134",
         "subnet": "192.168.110.0/24",
@@ -5445,7 +5119,7 @@
         "vendor": "Enterprise Network Switch / AP",
         "hostname": "host-192-168-110-134.ludus.lan",
         "vlan": "VLAN 110 (Infra)",
-        "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
         "switchPort": "SFP+-1/0/5"
       },
       "hardwareInfo": {
@@ -5464,8 +5138,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 3,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:43.958Z"
       }
     },
@@ -5475,7 +5149,7 @@
       "category": "Printer",
       "customType": "",
       "color": "#eab308",
-      "status": "Online",
+      "status": "Offline",
       "value": "6 Ports (80,161,443,515,631,9100)",
       "ip": "192.168.110.141",
       "subnet": "192.168.110.0/24",
@@ -5510,7 +5184,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-52",
           "DEV-192-168-110-141"
         ]
@@ -5593,7 +5267,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 9,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:58:45.614Z",
@@ -5677,7 +5351,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:44.054Z",
-      "updatedAt": "2026-11-05T12:13:44.054Z",
+      "updatedAt": "2026-11-05T15:14:29.686Z",
       "networkInfo": {
         "ip": "192.168.110.141",
         "subnet": "192.168.110.0/24",
@@ -5704,8 +5378,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 9,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:44.054Z"
       }
     },
@@ -5715,7 +5389,7 @@
       "category": "Printer",
       "customType": "",
       "color": "#eab308",
-      "status": "Online",
+      "status": "Offline",
       "value": "5 Ports (80,443,515,631,9100)",
       "ip": "192.168.110.155",
       "subnet": "192.168.110.0/24",
@@ -5750,7 +5424,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-53",
           "DEV-192-168-110-155"
         ]
@@ -5821,7 +5495,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 136,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:30.903Z",
@@ -5905,7 +5579,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:44.253Z",
-      "updatedAt": "2026-11-05T12:13:44.253Z",
+      "updatedAt": "2026-11-05T15:14:31.695Z",
       "networkInfo": {
         "ip": "192.168.110.155",
         "subnet": "192.168.110.0/24",
@@ -5932,8 +5606,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 136,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:44.253Z"
       }
     },
@@ -5978,7 +5652,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-58",
           "DEV-192-168-110-79",
           "DEV-192-168-110-191"
@@ -6078,7 +5752,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:12:58.981Z",
-      "updatedAt": "2026-11-05T12:13:46.661Z",
+      "updatedAt": "2026-11-05T15:14:33.713Z",
       "networkInfo": {
         "ip": "192.168.110.191",
         "subnet": "192.168.110.0/24",
@@ -6116,7 +5790,7 @@
       "category": "Printer",
       "customType": "",
       "color": "#eab308",
-      "status": "Warning",
+      "status": "Offline",
       "value": "6 Ports (80,161,443,515,631,9100)",
       "ip": "192.168.110.199",
       "subnet": "192.168.110.0/24",
@@ -6151,7 +5825,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-54",
           "DEV-192-168-110-199"
         ]
@@ -6234,7 +5908,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 219,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:31.406Z",
@@ -6318,7 +5992,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:47.338Z",
-      "updatedAt": "2026-11-05T12:13:47.338Z",
+      "updatedAt": "2026-11-05T15:14:36.202Z",
       "networkInfo": {
         "ip": "192.168.110.199",
         "subnet": "192.168.110.0/24",
@@ -6345,8 +6019,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Warning",
-        "latencyMs": 219,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:47.338Z"
       }
     },
@@ -6391,7 +6065,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-134",
           "DEV-192-168-110-93",
           "DEV-192-168-110-214"
@@ -6491,7 +6165,7 @@
         }
       ],
       "lastSeen": "2026-11-05T11:07:00.734Z",
-      "updatedAt": "2026-11-05T12:13:49.763Z",
+      "updatedAt": "2026-11-05T15:14:38.200Z",
       "networkInfo": {
         "ip": "192.168.110.214",
         "subnet": "192.168.110.0/24",
@@ -6529,7 +6203,7 @@
       "category": "Sensor",
       "customType": "",
       "color": "#14b8a6",
-      "status": "Online",
+      "status": "Offline",
       "value": "2 Ports (8008,8080)",
       "ip": "192.168.110.233",
       "subnet": "192.168.110.0/24",
@@ -6564,7 +6238,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-52",
           "DEV-192-168-110-98",
           "DEV-192-168-110-233"
@@ -6603,7 +6277,7 @@
         "defaultPort": "8008",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 4,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:33.701Z",
@@ -6687,7 +6361,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:49.820Z",
-      "updatedAt": "2026-11-05T12:13:49.820Z",
+      "updatedAt": "2026-11-05T15:14:40.179Z",
       "networkInfo": {
         "ip": "192.168.110.233",
         "subnet": "192.168.110.0/24",
@@ -6714,8 +6388,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 4,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:49.820Z"
       }
     },
@@ -6725,7 +6399,7 @@
       "category": "Access Point",
       "customType": "",
       "color": "#06b6d4",
-      "status": "Warning",
+      "status": "Offline",
       "value": "4 Ports (515,3000,8008,8443)",
       "ip": "192.168.110.235",
       "subnet": "192.168.110.0/24",
@@ -6760,7 +6434,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-53",
           "DEV-192-168-110-235"
         ]
@@ -6820,7 +6494,7 @@
         "defaultPort": "3000",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 271,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:57:18.826Z",
@@ -6904,7 +6578,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:50.136Z",
-      "updatedAt": "2026-11-05T12:13:50.136Z",
+      "updatedAt": "2026-11-05T15:14:42.198Z",
       "networkInfo": {
         "ip": "192.168.110.235",
         "subnet": "192.168.110.0/24",
@@ -6931,8 +6605,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Warning",
-        "latencyMs": 271,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:50.136Z"
       }
     },
@@ -6942,7 +6616,7 @@
       "category": "Network",
       "customType": "",
       "color": "#60a5fa",
-      "status": "Online",
+      "status": "Offline",
       "value": "191 ms",
       "ip": "192.168.111.4",
       "subnet": "192.168.111.0/24",
@@ -6977,7 +6651,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-52",
           "DEV-192-168-110-51",
           "DEV-192-168-111-4"
@@ -6993,7 +6667,7 @@
         "defaultPort": "80",
         "notes": "Auto-discovered on 192.168.111.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 3,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:58:48.909Z",
@@ -7077,7 +6751,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:50.354Z",
-      "updatedAt": "2026-11-05T12:13:50.354Z",
+      "updatedAt": "2026-11-05T15:14:44.161Z",
       "networkInfo": {
         "ip": "192.168.111.4",
         "subnet": "192.168.111.0/24",
@@ -7104,8 +6778,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 3,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:50.354Z"
       }
     },
@@ -7150,7 +6824,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-53",
           "DEV-192-168-110-70",
           "DEV-192-168-111-78"
@@ -7250,7 +6924,7 @@
         }
       ],
       "lastSeen": "2026-11-05T11:46:52.994Z",
-      "updatedAt": "2026-11-05T12:13:52.697Z",
+      "updatedAt": "2026-11-05T15:14:46.207Z",
       "networkInfo": {
         "ip": "192.168.111.78",
         "subnet": "192.168.111.0/24",
@@ -7288,7 +6962,7 @@
       "category": "Network",
       "customType": "",
       "color": "#60a5fa",
-      "status": "Online",
+      "status": "Offline",
       "value": "2 Ports (8008,8080)",
       "ip": "192.168.111.87",
       "subnet": "192.168.111.0/24",
@@ -7323,7 +6997,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-54",
           "DEV-192-168-110-71",
           "DEV-192-168-111-87"
@@ -7362,7 +7036,7 @@
         "defaultPort": "8008",
         "notes": "Auto-discovered on 192.168.111.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 4,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:36.222Z",
@@ -7446,7 +7120,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:52.827Z",
-      "updatedAt": "2026-11-05T12:13:52.827Z",
+      "updatedAt": "2026-11-05T15:14:48.168Z",
       "networkInfo": {
         "ip": "192.168.111.87",
         "subnet": "192.168.111.0/24",
@@ -7473,8 +7147,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 4,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:52.827Z"
       }
     },
@@ -7484,7 +7158,7 @@
       "category": "Network",
       "customType": "",
       "color": "#60a5fa",
-      "status": "Online",
+      "status": "Offline",
       "value": "2 Ports (8008,8080)",
       "ip": "192.168.111.88",
       "subnet": "192.168.111.0/24",
@@ -7519,7 +7193,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-58",
           "DEV-192-168-110-79",
           "DEV-192-168-111-88"
@@ -7558,7 +7232,7 @@
         "defaultPort": "8008",
         "notes": "Auto-discovered on 192.168.111.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 5,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:36.290Z",
@@ -7642,7 +7316,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:52.884Z",
-      "updatedAt": "2026-11-05T12:13:52.884Z",
+      "updatedAt": "2026-11-05T15:14:50.168Z",
       "networkInfo": {
         "ip": "192.168.111.88",
         "subnet": "192.168.111.0/24",
@@ -7669,8 +7343,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 5,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:52.884Z"
       }
     },
@@ -7680,7 +7354,7 @@
       "category": "Switch",
       "customType": "",
       "color": "#38bdf8",
-      "status": "Online",
+      "status": "Offline",
       "value": "4 Ports (53,80,443,8888)",
       "ip": "192.168.111.93",
       "subnet": "192.168.111.0/24",
@@ -7690,7 +7364,7 @@
       "osFirmware": "GoAhead-Webs | HTTP 302",
       "serialNumber": "SN-LUDUS-237A3F",
       "assetTag": "AST-2026-111-93",
-      "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+      "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
       "switchPort": "SFP+-1/0/6",
       "vlan": "VLAN 111 (Access)",
       "isPlaced": false,
@@ -7709,13 +7383,13 @@
       "hierarchy": {
         "tier": 2,
         "role": "Distribution / PoE Switch",
-        "parentDeviceId": "DEV-192-168-110-50",
-        "parentDeviceName": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "parentDeviceId": "DEV-192-168-110-69",
+        "parentDeviceName": "Distribution-Gateway-110-69 (Secondary Router)",
         "uplinkPort": "SFP+-1/0/6",
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-111-93"
         ]
       },
@@ -7967,7 +7641,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.111.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 9,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:36.354Z",
@@ -8051,7 +7725,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:52.970Z",
-      "updatedAt": "2026-11-05T12:13:52.970Z",
+      "updatedAt": "2026-11-05T15:14:52.156Z",
       "networkInfo": {
         "ip": "192.168.111.93",
         "subnet": "192.168.111.0/24",
@@ -8059,7 +7733,7 @@
         "vendor": "Cisco / Linksys Network Endpoint",
         "hostname": "host-192-168-111-93.ludus.lan",
         "vlan": "VLAN 111 (Access)",
-        "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
         "switchPort": "SFP+-1/0/6"
       },
       "hardwareInfo": {
@@ -8078,8 +7752,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 9,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:52.970Z"
       }
     },
@@ -8089,7 +7763,7 @@
       "category": "Switch",
       "customType": "",
       "color": "#38bdf8",
-      "status": "Online",
+      "status": "Offline",
       "value": "4 Ports (53,80,443,8888)",
       "ip": "192.168.111.100",
       "subnet": "192.168.111.0/24",
@@ -8099,7 +7773,7 @@
       "osFirmware": "GoAhead-Webs | HTTP 302",
       "serialNumber": "SN-LUDUS-677A8C",
       "assetTag": "AST-2026-111-100",
-      "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+      "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
       "switchPort": "SFP+-1/0/7",
       "vlan": "VLAN 111 (Access)",
       "isPlaced": false,
@@ -8118,13 +7792,13 @@
       "hierarchy": {
         "tier": 2,
         "role": "Distribution / PoE Switch",
-        "parentDeviceId": "DEV-192-168-110-50",
-        "parentDeviceName": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "parentDeviceId": "DEV-192-168-110-69",
+        "parentDeviceName": "Distribution-Gateway-110-69 (Secondary Router)",
         "uplinkPort": "SFP+-1/0/7",
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-111-100"
         ]
       },
@@ -8376,7 +8050,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.111.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 3,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:36.409Z",
@@ -8460,7 +8134,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:53.031Z",
-      "updatedAt": "2026-11-05T12:13:53.032Z",
+      "updatedAt": "2026-11-05T15:14:54.178Z",
       "networkInfo": {
         "ip": "192.168.111.100",
         "subnet": "192.168.111.0/24",
@@ -8468,7 +8142,7 @@
         "vendor": "Cisco / Linksys Network Endpoint",
         "hostname": "host-192-168-111-100.ludus.lan",
         "vlan": "VLAN 111 (Access)",
-        "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
         "switchPort": "SFP+-1/0/7"
       },
       "hardwareInfo": {
@@ -8487,8 +8161,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 3,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:53.031Z"
       }
     },
@@ -8498,7 +8172,7 @@
       "category": "Switch",
       "customType": "",
       "color": "#38bdf8",
-      "status": "Online",
+      "status": "Offline",
       "value": "4 Ports (53,80,443,8888)",
       "ip": "192.168.111.104",
       "subnet": "192.168.111.0/24",
@@ -8508,7 +8182,7 @@
       "osFirmware": "GoAhead-Webs | HTTP 302",
       "serialNumber": "SN-LUDUS-21E57E",
       "assetTag": "AST-2026-111-104",
-      "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+      "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
       "switchPort": "SFP+-1/0/8",
       "vlan": "VLAN 111 (Access)",
       "isPlaced": false,
@@ -8527,13 +8201,13 @@
       "hierarchy": {
         "tier": 2,
         "role": "Distribution / PoE Switch",
-        "parentDeviceId": "DEV-192-168-110-50",
-        "parentDeviceName": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "parentDeviceId": "DEV-192-168-110-69",
+        "parentDeviceName": "Distribution-Gateway-110-69 (Secondary Router)",
         "uplinkPort": "SFP+-1/0/8",
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-111-104"
         ]
       },
@@ -8785,7 +8459,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.111.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 3,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:36.464Z",
@@ -8869,7 +8543,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:53.078Z",
-      "updatedAt": "2026-11-05T12:13:53.078Z",
+      "updatedAt": "2026-11-05T15:14:11.690Z",
       "networkInfo": {
         "ip": "192.168.111.104",
         "subnet": "192.168.111.0/24",
@@ -8877,7 +8551,7 @@
         "vendor": "Cisco / Linksys Network Endpoint",
         "hostname": "host-192-168-111-104.ludus.lan",
         "vlan": "VLAN 111 (Access)",
-        "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
         "switchPort": "SFP+-1/0/8"
       },
       "hardwareInfo": {
@@ -8896,8 +8570,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 3,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:53.078Z"
       }
     },
@@ -8907,7 +8581,7 @@
       "category": "Switch",
       "customType": "",
       "color": "#38bdf8",
-      "status": "Online",
+      "status": "Offline",
       "value": "2 Ports (80,443)",
       "ip": "192.168.111.105",
       "subnet": "192.168.111.0/24",
@@ -8917,7 +8591,7 @@
       "osFirmware": "HTTP 200",
       "serialNumber": "SN-LUDUS-D49C40",
       "assetTag": "AST-2026-111-105",
-      "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+      "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
       "switchPort": "SFP+-1/0/9",
       "vlan": "VLAN 111 (Access)",
       "isPlaced": false,
@@ -8936,13 +8610,15 @@
       "hierarchy": {
         "tier": 2,
         "role": "Distribution / PoE Switch",
-        "parentDeviceId": "DEV-192-168-110-50",
-        "parentDeviceName": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "parentDeviceId": "DEV-192-168-110-69",
+        "parentDeviceName": "Distribution-Gateway-110-69 (Secondary Router)",
         "uplinkPort": "SFP+-1/0/9",
-        "childrenIds": [],
+        "childrenIds": [
+          "DEV-MW3O7I8F-L1H"
+        ],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-111-105"
         ]
       },
@@ -9172,7 +8848,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.111.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 10,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:36.526Z",
@@ -9256,7 +8932,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:53.130Z",
-      "updatedAt": "2026-11-05T12:13:53.130Z",
+      "updatedAt": "2026-11-05T15:14:13.677Z",
       "networkInfo": {
         "ip": "192.168.111.105",
         "subnet": "192.168.111.0/24",
@@ -9264,7 +8940,7 @@
         "vendor": "Enterprise Network Switch / AP",
         "hostname": "host-192-168-111-105.ludus.lan",
         "vlan": "VLAN 111 (Access)",
-        "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
         "switchPort": "SFP+-1/0/9"
       },
       "hardwareInfo": {
@@ -9283,8 +8959,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 10,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:53.130Z"
       }
     },
@@ -9294,7 +8970,7 @@
       "category": "Switch",
       "customType": "",
       "color": "#38bdf8",
-      "status": "Online",
+      "status": "Offline",
       "value": "4 Ports (53,80,443,8888)",
       "ip": "192.168.111.106",
       "subnet": "192.168.111.0/24",
@@ -9304,7 +8980,7 @@
       "osFirmware": "GoAhead-Webs | HTTP 302",
       "serialNumber": "SN-LUDUS-2379F0",
       "assetTag": "AST-2026-111-106",
-      "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+      "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
       "switchPort": "SFP+-1/0/10",
       "vlan": "VLAN 111 (Access)",
       "isPlaced": false,
@@ -9323,13 +8999,13 @@
       "hierarchy": {
         "tier": 2,
         "role": "Distribution / PoE Switch",
-        "parentDeviceId": "DEV-192-168-110-50",
-        "parentDeviceName": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "parentDeviceId": "DEV-192-168-110-69",
+        "parentDeviceName": "Distribution-Gateway-110-69 (Secondary Router)",
         "uplinkPort": "SFP+-1/0/10",
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-111-106"
         ]
       },
@@ -9581,7 +9257,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.111.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 3,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:59:36.576Z",
@@ -9665,7 +9341,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:53.169Z",
-      "updatedAt": "2026-11-05T12:13:53.169Z",
+      "updatedAt": "2026-11-05T15:14:15.691Z",
       "networkInfo": {
         "ip": "192.168.111.106",
         "subnet": "192.168.111.0/24",
@@ -9673,7 +9349,7 @@
         "vendor": "Cisco / Linksys Network Endpoint",
         "hostname": "host-192-168-111-106.ludus.lan",
         "vlan": "VLAN 111 (Access)",
-        "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
         "switchPort": "SFP+-1/0/10"
       },
       "hardwareInfo": {
@@ -9692,8 +9368,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 3,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:53.169Z"
       }
     },
@@ -9738,7 +9414,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-134",
           "DEV-192-168-110-93",
           "DEV-192-168-111-130"
@@ -9872,7 +9548,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:10:51.735Z",
-      "updatedAt": "2026-11-05T12:13:06.668Z",
+      "updatedAt": "2026-11-05T15:14:17.713Z",
       "networkInfo": {
         "ip": "192.168.111.130",
         "subnet": "192.168.111.0/24",
@@ -9945,7 +9621,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-52",
           "DEV-192-168-110-51",
           "DEV-192-168-111-172"
@@ -10005,7 +9681,7 @@
         }
       ],
       "lastSeen": "2026-11-05T11:57:23.760Z",
-      "updatedAt": "2026-11-05T12:13:08.681Z",
+      "updatedAt": "2026-11-05T15:14:20.193Z",
       "networkInfo": {
         "ip": "192.168.111.172",
         "subnet": "192.168.111.0/24",
@@ -10043,7 +9719,7 @@
       "category": "Switch",
       "customType": "",
       "color": "#38bdf8",
-      "status": "Online",
+      "status": "Offline",
       "value": "4 Ports (53,80,443,8888)",
       "ip": "192.168.111.197",
       "subnet": "192.168.111.0/24",
@@ -10053,7 +9729,7 @@
       "osFirmware": "GoAhead-Webs | HTTP 302",
       "serialNumber": "SN-LUDUS-237CD9",
       "assetTag": "AST-2026-111-197",
-      "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+      "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
       "switchPort": "SFP+-1/0/11",
       "vlan": "VLAN 111 (Access)",
       "isPlaced": false,
@@ -10072,13 +9748,13 @@
       "hierarchy": {
         "tier": 2,
         "role": "Distribution / PoE Switch",
-        "parentDeviceId": "DEV-192-168-110-50",
-        "parentDeviceName": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "parentDeviceId": "DEV-192-168-110-69",
+        "parentDeviceName": "Distribution-Gateway-110-69 (Secondary Router)",
         "uplinkPort": "SFP+-1/0/11",
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-111-197"
         ]
       },
@@ -10330,7 +10006,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.111.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 3,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:58:55.688Z",
@@ -10414,7 +10090,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:08.728Z",
-      "updatedAt": "2026-11-05T12:13:08.728Z",
+      "updatedAt": "2026-11-05T15:14:22.199Z",
       "networkInfo": {
         "ip": "192.168.111.197",
         "subnet": "192.168.111.0/24",
@@ -10422,7 +10098,7 @@
         "vendor": "Cisco / Linksys Network Endpoint",
         "hostname": "host-192-168-111-197.ludus.lan",
         "vlan": "VLAN 111 (Access)",
-        "connectedSwitch": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
+        "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
         "switchPort": "SFP+-1/0/11"
       },
       "hardwareInfo": {
@@ -10441,8 +10117,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 3,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:08.728Z"
       }
     },
@@ -10452,7 +10128,7 @@
       "category": "Network",
       "customType": "",
       "color": "#60a5fa",
-      "status": "Online",
+      "status": "Offline",
       "value": "3 Ports (8008,8443,9000)",
       "ip": "192.168.111.220",
       "subnet": "192.168.111.0/24",
@@ -10487,7 +10163,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-52",
           "DEV-192-168-110-98",
           "DEV-192-168-111-220"
@@ -10537,7 +10213,7 @@
         "defaultPort": "8008",
         "notes": "Auto-discovered on 192.168.111.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 16,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:57:23.919Z",
@@ -10621,7 +10297,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:08.825Z",
-      "updatedAt": "2026-11-05T12:13:08.825Z",
+      "updatedAt": "2026-11-05T15:14:24.173Z",
       "networkInfo": {
         "ip": "192.168.111.220",
         "subnet": "192.168.111.0/24",
@@ -10648,8 +10324,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 16,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:08.825Z"
       }
     },
@@ -10659,7 +10335,7 @@
       "category": "Network",
       "customType": "",
       "color": "#60a5fa",
-      "status": "Online",
+      "status": "Offline",
       "value": "2 Ports (8008,8080)",
       "ip": "192.168.111.239",
       "subnet": "192.168.111.0/24",
@@ -10694,7 +10370,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-52",
           "DEV-192-168-110-51",
           "DEV-192-168-111-239"
@@ -10733,7 +10409,7 @@
         "defaultPort": "8008",
         "notes": "Auto-discovered on 192.168.111.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 11,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:58:55.780Z",
@@ -10817,7 +10493,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:08.881Z",
-      "updatedAt": "2026-11-05T12:13:08.881Z",
+      "updatedAt": "2026-11-05T15:14:26.207Z",
       "networkInfo": {
         "ip": "192.168.111.239",
         "subnet": "192.168.111.0/24",
@@ -10844,8 +10520,8 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 11,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:08.881Z"
       }
     },
@@ -10855,7 +10531,7 @@
       "category": "CCTV",
       "customType": "",
       "color": "#ec4899",
-      "status": "Online",
+      "status": "Offline",
       "value": "4 Ports (80,443,554,8000)",
       "ip": "192.168.110.57",
       "subnet": "192.168.110.0/24",
@@ -10890,7 +10566,7 @@
         "childrenIds": [],
         "path": [
           "WAN-ROOT",
-          "DEV-192-168-110-50",
+          "DEV-192-168-110-69",
           "DEV-192-168-110-52",
           "DEV-192-168-110-51",
           "DEV-192-168-110-57"
@@ -10951,7 +10627,7 @@
         "defaultPort": "443",
         "notes": "Auto-discovered on 192.168.110.0/24 via LUDUS Scanner (Waiting for Admin placement)"
       },
-      "latencyMs": 3,
+      "latencyMs": null,
       "latencyHistory": [
         {
           "t": "2026-11-05T11:58:55.829Z",
@@ -11035,7 +10711,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:08.934Z",
-      "updatedAt": "2026-11-05T12:13:08.934Z",
+      "updatedAt": "2026-11-05T15:14:28.188Z",
       "networkInfo": {
         "ip": "192.168.110.57",
         "subnet": "192.168.110.0/24",
@@ -11062,9 +10738,110 @@
         "position": null
       },
       "telemetry": {
-        "status": "Online",
-        "latencyMs": 3,
+        "status": "Offline",
+        "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:08.934Z"
+      }
+    },
+    {
+      "id": "DEV-MW3O7I8F-L1H",
+      "name": "Security Rack",
+      "category": "Server",
+      "customType": "",
+      "color": "#38bdf8",
+      "status": "Online",
+      "value": "",
+      "ip": "",
+      "subnet": "",
+      "mac": "",
+      "vendor": "Server Rack Cabinet",
+      "hostname": "",
+      "osFirmware": "",
+      "serialNumber": "",
+      "assetTag": "",
+      "connectedSwitch": "Managed-Switch-SW09 (192.168.111.105)",
+      "switchPort": "PoE-Gi1/0/18",
+      "vlan": "VLAN 1",
+      "isPlaced": true,
+      "floorIdx": 1,
+      "roomId": "ROOM-MW3AQGRP-LPG",
+      "roomNumber": "101",
+      "position": {
+        "x": -6.5,
+        "y": 4.05,
+        "z": 4.22
+      },
+      "modelType": "server_rack",
+      "rotationY": 180,
+      "parentRackId": "",
+      "uPosition": null,
+      "uHeight": 1,
+      "rackFace": "front",
+      "isFullDepth": true,
+      "rackConfig": {
+        "rackHeight": 42
+      },
+      "hierarchy": {
+        "tier": 3,
+        "role": "Infrastructure Server / VM",
+        "parentDeviceId": "DEV-192-168-111-105",
+        "parentDeviceName": "Managed-Switch-SW09 (192.168.111.105)",
+        "uplinkPort": "PoE-Gi1/0/18",
+        "childrenIds": [],
+        "path": [
+          "WAN-ROOT",
+          "DEV-192-168-110-69",
+          "DEV-192-168-111-105",
+          "DEV-MW3O7I8F-L1H"
+        ]
+      },
+      "openPorts": [],
+      "snmpInfo": {},
+      "switchInterfaces": [],
+      "credentials": {
+        "username": "admin",
+        "password": "",
+        "loginUrl": "",
+        "defaultPort": "",
+        "notes": ""
+      },
+      "latencyMs": null,
+      "latencyHistory": [],
+      "lastSeen": "2026-11-05T14:58:24.399Z",
+      "updatedAt": "2026-11-05T14:59:07.040Z",
+      "networkInfo": {
+        "ip": "",
+        "subnet": "",
+        "mac": "",
+        "vendor": "Server Rack Cabinet",
+        "hostname": "",
+        "vlan": "VLAN 1",
+        "connectedSwitch": "Managed-Switch-SW09 (192.168.111.105)",
+        "switchPort": "PoE-Gi1/0/18"
+      },
+      "hardwareInfo": {
+        "vendor": "Server Rack Cabinet",
+        "osFirmware": "",
+        "serialNumber": "",
+        "assetTag": ""
+      },
+      "spatialInfo": {
+        "isPlaced": true,
+        "building": "LUDUS_Building_No_Glass",
+        "floorIdx": 1,
+        "floorLabel": "01_First_Floor",
+        "roomId": "ROOM-MW3AQGRP-LPG",
+        "roomNumber": "101",
+        "position": {
+          "x": -6.5,
+          "y": 4.05,
+          "z": 4.22
+        }
+      },
+      "telemetry": {
+        "status": "Online",
+        "latencyMs": null,
+        "lastSeen": "2026-11-05T14:58:24.399Z"
       }
     }
   ],
@@ -11119,7 +10896,26 @@
           "interfaceName": "Wi-Fi"
         }
       ],
-      "children": []
+      "children": [
+        {
+          "id": "DEV-MW3O7I8F-L1H",
+          "name": "Security Rack",
+          "ip": "",
+          "mac": "",
+          "vendor": "Server Rack Cabinet",
+          "category": "Server",
+          "tier": 3,
+          "role": "Infrastructure Server / VM",
+          "status": "Online",
+          "latencyMs": null,
+          "uplinkPort": "PoE-Gi1/0/18",
+          "isPlaced": true,
+          "floorIdx": 1,
+          "roomNumber": "101",
+          "openPortsCount": 0,
+          "children": []
+        }
+      ]
     },
     "discoveredTopologyTree": {
       "id": "WAN-ROOT",
@@ -11173,21 +10969,21 @@
       ],
       "children": [
         {
-          "id": "DEV-192-168-110-50",
-          "name": "Core-GW-Router-110-50 (Main Gateway & MQTT)",
-          "ip": "192.168.110.50",
-          "mac": "C4:B2:5B:F3:C4:9C",
+          "id": "DEV-192-168-110-69",
+          "name": "Distribution-Gateway-110-69 (Secondary Router)",
+          "ip": "192.168.110.69",
+          "mac": "C4:B2:5B:66:42:20",
           "vendor": "Huawei / Ruijie Enterprise Gateway",
           "category": "Router",
           "tier": 1,
           "role": "Core Gateway / Router",
-          "status": "Online",
-          "latencyMs": 3,
-          "uplinkPort": "WAN1 (1000Base-T)",
+          "status": "Offline",
+          "latencyMs": null,
+          "uplinkPort": "SFP+-1/0/1",
           "isPlaced": false,
           "floorIdx": null,
           "roomNumber": "",
-          "openPortsCount": 4,
+          "openPortsCount": 3,
           "children": [
             {
               "id": "DEV-192-168-110-52",
@@ -11198,8 +10994,8 @@
               "category": "Switch",
               "tier": 2,
               "role": "Distribution / PoE Switch",
-              "status": "Online",
-              "latencyMs": 3,
+              "status": "Offline",
+              "latencyMs": null,
               "uplinkPort": "SFP+-1/0/1",
               "isPlaced": false,
               "floorIdx": null,
@@ -11215,8 +11011,8 @@
                   "category": "Access Point",
                   "tier": 3,
                   "role": "Wireless Access Point (AP)",
-                  "status": "Online",
-                  "latencyMs": 10,
+                  "status": "Offline",
+                  "latencyMs": null,
                   "uplinkPort": "PoE-Gi1/0/2",
                   "isPlaced": false,
                   "floorIdx": null,
@@ -11232,8 +11028,8 @@
                       "category": "Network",
                       "tier": 4,
                       "role": "Endpoint (Network)",
-                      "status": "Online",
-                      "latencyMs": 3,
+                      "status": "Offline",
+                      "latencyMs": null,
                       "uplinkPort": "WLAN-5GHz-CH48",
                       "isPlaced": false,
                       "floorIdx": null,
@@ -11268,8 +11064,8 @@
                       "category": "Network",
                       "tier": 4,
                       "role": "Endpoint (Network)",
-                      "status": "Online",
-                      "latencyMs": 11,
+                      "status": "Offline",
+                      "latencyMs": null,
                       "uplinkPort": "WLAN-5GHz-CH40",
                       "isPlaced": false,
                       "floorIdx": null,
@@ -11286,8 +11082,8 @@
                       "category": "CCTV",
                       "tier": 4,
                       "role": "Endpoint (CCTV)",
-                      "status": "Online",
-                      "latencyMs": 3,
+                      "status": "Offline",
+                      "latencyMs": null,
                       "uplinkPort": "WLAN-5GHz-CH40",
                       "isPlaced": false,
                       "floorIdx": null,
@@ -11306,8 +11102,8 @@
                   "category": "Access Point",
                   "tier": 3,
                   "role": "Wireless Access Point (AP)",
-                  "status": "Online",
-                  "latencyMs": 3,
+                  "status": "Offline",
+                  "latencyMs": null,
                   "uplinkPort": "PoE-Gi1/0/7",
                   "isPlaced": false,
                   "floorIdx": null,
@@ -11323,8 +11119,8 @@
                       "category": "Sensor",
                       "tier": 4,
                       "role": "Endpoint (Sensor)",
-                      "status": "Online",
-                      "latencyMs": 4,
+                      "status": "Offline",
+                      "latencyMs": null,
                       "uplinkPort": "WLAN-5GHz-CH44",
                       "isPlaced": false,
                       "floorIdx": null,
@@ -11341,8 +11137,8 @@
                       "category": "Network",
                       "tier": 4,
                       "role": "Endpoint (Network)",
-                      "status": "Online",
-                      "latencyMs": 16,
+                      "status": "Offline",
+                      "latencyMs": null,
                       "uplinkPort": "WLAN-5GHz-CH36",
                       "isPlaced": false,
                       "floorIdx": null,
@@ -11361,8 +11157,8 @@
                   "category": "Access Point",
                   "tier": 3,
                   "role": "Wireless Access Point (AP)",
-                  "status": "Online",
-                  "latencyMs": 44,
+                  "status": "Offline",
+                  "latencyMs": null,
                   "uplinkPort": "PoE-Gi1/0/12",
                   "isPlaced": false,
                   "floorIdx": null,
@@ -11379,8 +11175,8 @@
                   "category": "Printer",
                   "tier": 4,
                   "role": "Endpoint (Printer)",
-                  "status": "Online",
-                  "latencyMs": 9,
+                  "status": "Offline",
+                  "latencyMs": null,
                   "uplinkPort": "Gi1/0/19",
                   "isPlaced": false,
                   "floorIdx": null,
@@ -11399,8 +11195,8 @@
               "category": "Switch",
               "tier": 2,
               "role": "Distribution / PoE Switch",
-              "status": "Online",
-              "latencyMs": 3,
+              "status": "Offline",
+              "latencyMs": null,
               "uplinkPort": "SFP+-1/0/2",
               "isPlaced": false,
               "floorIdx": null,
@@ -11416,8 +11212,8 @@
                   "category": "Access Point",
                   "tier": 3,
                   "role": "Wireless Access Point (AP)",
-                  "status": "Online",
-                  "latencyMs": 4,
+                  "status": "Offline",
+                  "latencyMs": null,
                   "uplinkPort": "PoE-Gi1/0/3",
                   "isPlaced": false,
                   "floorIdx": null,
@@ -11433,8 +11229,8 @@
                       "category": "Sensor",
                       "tier": 4,
                       "role": "Endpoint (Sensor)",
-                      "status": "Online",
-                      "latencyMs": 37,
+                      "status": "Offline",
+                      "latencyMs": null,
                       "uplinkPort": "WLAN-5GHz-CH44",
                       "isPlaced": false,
                       "floorIdx": null,
@@ -11471,8 +11267,8 @@
                   "category": "Access Point",
                   "tier": 3,
                   "role": "Wireless Access Point (AP)",
-                  "status": "Online",
-                  "latencyMs": 58,
+                  "status": "Offline",
+                  "latencyMs": null,
                   "uplinkPort": "PoE-Gi1/0/8",
                   "isPlaced": false,
                   "floorIdx": null,
@@ -11489,8 +11285,8 @@
                   "category": "Printer",
                   "tier": 4,
                   "role": "Endpoint (Printer)",
-                  "status": "Online",
-                  "latencyMs": 136,
+                  "status": "Offline",
+                  "latencyMs": null,
                   "uplinkPort": "Gi1/0/20",
                   "isPlaced": false,
                   "floorIdx": null,
@@ -11507,8 +11303,8 @@
                   "category": "Access Point",
                   "tier": 3,
                   "role": "Wireless Access Point (AP)",
-                  "status": "Warning",
-                  "latencyMs": 271,
+                  "status": "Offline",
+                  "latencyMs": null,
                   "uplinkPort": "PoE-Gi1/0/13",
                   "isPlaced": false,
                   "floorIdx": null,
@@ -11527,8 +11323,8 @@
               "category": "Switch",
               "tier": 2,
               "role": "Distribution / PoE Switch",
-              "status": "Online",
-              "latencyMs": 3,
+              "status": "Offline",
+              "latencyMs": null,
               "uplinkPort": "SFP+-1/0/3",
               "isPlaced": false,
               "floorIdx": null,
@@ -11544,8 +11340,8 @@
                   "category": "Access Point",
                   "tier": 3,
                   "role": "Wireless Access Point (AP)",
-                  "status": "Online",
-                  "latencyMs": 6,
+                  "status": "Offline",
+                  "latencyMs": null,
                   "uplinkPort": "PoE-Gi1/0/4",
                   "isPlaced": false,
                   "floorIdx": null,
@@ -11561,8 +11357,8 @@
                       "category": "Sensor",
                       "tier": 4,
                       "role": "Endpoint (Sensor)",
-                      "status": "Online",
-                      "latencyMs": 62,
+                      "status": "Offline",
+                      "latencyMs": null,
                       "uplinkPort": "WLAN-5GHz-CH48",
                       "isPlaced": false,
                       "floorIdx": null,
@@ -11579,8 +11375,8 @@
                       "category": "Network",
                       "tier": 4,
                       "role": "Endpoint (Network)",
-                      "status": "Online",
-                      "latencyMs": 4,
+                      "status": "Offline",
+                      "latencyMs": null,
                       "uplinkPort": "WLAN-5GHz-CH40",
                       "isPlaced": false,
                       "floorIdx": null,
@@ -11599,8 +11395,8 @@
                   "category": "Access Point",
                   "tier": 3,
                   "role": "Wireless Access Point (AP)",
-                  "status": "Online",
-                  "latencyMs": 5,
+                  "status": "Offline",
+                  "latencyMs": null,
                   "uplinkPort": "PoE-Gi1/0/9",
                   "isPlaced": false,
                   "floorIdx": null,
@@ -11617,8 +11413,8 @@
                   "category": "Printer",
                   "tier": 4,
                   "role": "Endpoint (Printer)",
-                  "status": "Warning",
-                  "latencyMs": 219,
+                  "status": "Offline",
+                  "latencyMs": null,
                   "uplinkPort": "Gi1/0/21",
                   "isPlaced": false,
                   "floorIdx": null,
@@ -11637,8 +11433,8 @@
               "category": "Switch",
               "tier": 2,
               "role": "Distribution / PoE Switch",
-              "status": "Online",
-              "latencyMs": 10,
+              "status": "Offline",
+              "latencyMs": null,
               "uplinkPort": "SFP+-1/0/4",
               "isPlaced": false,
               "floorIdx": null,
@@ -11654,8 +11450,8 @@
                   "category": "Access Point",
                   "tier": 3,
                   "role": "Wireless Access Point (AP)",
-                  "status": "Online",
-                  "latencyMs": 3,
+                  "status": "Offline",
+                  "latencyMs": null,
                   "uplinkPort": "PoE-Gi1/0/5",
                   "isPlaced": false,
                   "floorIdx": null,
@@ -11689,8 +11485,8 @@
                       "category": "Network",
                       "tier": 4,
                       "role": "Endpoint (Network)",
-                      "status": "Online",
-                      "latencyMs": 5,
+                      "status": "Offline",
+                      "latencyMs": null,
                       "uplinkPort": "WLAN-5GHz-CH44",
                       "isPlaced": false,
                       "floorIdx": null,
@@ -11709,8 +11505,8 @@
                   "category": "Access Point",
                   "tier": 3,
                   "role": "Wireless Access Point (AP)",
-                  "status": "Online",
-                  "latencyMs": 6,
+                  "status": "Offline",
+                  "latencyMs": null,
                   "uplinkPort": "PoE-Gi1/0/10",
                   "isPlaced": false,
                   "floorIdx": null,
@@ -11721,24 +11517,6 @@
               ]
             },
             {
-              "id": "DEV-192-168-110-69",
-              "name": "Distribution-Gateway-110-69 (Secondary Router)",
-              "ip": "192.168.110.69",
-              "mac": "C4:B2:5B:66:42:20",
-              "vendor": "Huawei / Ruijie Enterprise Gateway",
-              "category": "Router",
-              "tier": 1,
-              "role": "Core Gateway / Router",
-              "status": "Online",
-              "latencyMs": 18,
-              "uplinkPort": "SFP+-1/0/1",
-              "isPlaced": false,
-              "floorIdx": null,
-              "roomNumber": "",
-              "openPortsCount": 3,
-              "children": []
-            },
-            {
               "id": "DEV-192-168-110-134",
               "name": "Managed-Switch-SW05 (192.168.110.134)",
               "ip": "192.168.110.134",
@@ -11747,8 +11525,8 @@
               "category": "Switch",
               "tier": 2,
               "role": "Distribution / PoE Switch",
-              "status": "Online",
-              "latencyMs": 3,
+              "status": "Offline",
+              "latencyMs": null,
               "uplinkPort": "SFP+-1/0/5",
               "isPlaced": false,
               "floorIdx": null,
@@ -11764,8 +11542,8 @@
                   "category": "Access Point",
                   "tier": 3,
                   "role": "Wireless Access Point (AP)",
-                  "status": "Online",
-                  "latencyMs": 3,
+                  "status": "Offline",
+                  "latencyMs": null,
                   "uplinkPort": "PoE-Gi1/0/6",
                   "isPlaced": false,
                   "floorIdx": null,
@@ -11819,8 +11597,8 @@
                   "category": "Access Point",
                   "tier": 3,
                   "role": "Wireless Access Point (AP)",
-                  "status": "Online",
-                  "latencyMs": 6,
+                  "status": "Offline",
+                  "latencyMs": null,
                   "uplinkPort": "PoE-Gi1/0/11",
                   "isPlaced": false,
                   "floorIdx": null,
@@ -11839,8 +11617,8 @@
               "category": "Switch",
               "tier": 2,
               "role": "Distribution / PoE Switch",
-              "status": "Online",
-              "latencyMs": 9,
+              "status": "Offline",
+              "latencyMs": null,
               "uplinkPort": "SFP+-1/0/6",
               "isPlaced": false,
               "floorIdx": null,
@@ -11857,8 +11635,8 @@
               "category": "Switch",
               "tier": 2,
               "role": "Distribution / PoE Switch",
-              "status": "Online",
-              "latencyMs": 3,
+              "status": "Offline",
+              "latencyMs": null,
               "uplinkPort": "SFP+-1/0/7",
               "isPlaced": false,
               "floorIdx": null,
@@ -11875,8 +11653,8 @@
               "category": "Switch",
               "tier": 2,
               "role": "Distribution / PoE Switch",
-              "status": "Online",
-              "latencyMs": 3,
+              "status": "Offline",
+              "latencyMs": null,
               "uplinkPort": "SFP+-1/0/8",
               "isPlaced": false,
               "floorIdx": null,
@@ -11893,14 +11671,33 @@
               "category": "Switch",
               "tier": 2,
               "role": "Distribution / PoE Switch",
-              "status": "Online",
-              "latencyMs": 10,
+              "status": "Offline",
+              "latencyMs": null,
               "uplinkPort": "SFP+-1/0/9",
               "isPlaced": false,
               "floorIdx": null,
               "roomNumber": "",
               "openPortsCount": 2,
-              "children": []
+              "children": [
+                {
+                  "id": "DEV-MW3O7I8F-L1H",
+                  "name": "Security Rack",
+                  "ip": "",
+                  "mac": "",
+                  "vendor": "Server Rack Cabinet",
+                  "category": "Server",
+                  "tier": 3,
+                  "role": "Infrastructure Server / VM",
+                  "status": "Online",
+                  "latencyMs": null,
+                  "uplinkPort": "PoE-Gi1/0/18",
+                  "isPlaced": true,
+                  "floorIdx": 1,
+                  "roomNumber": "101",
+                  "openPortsCount": 0,
+                  "children": []
+                }
+              ]
             },
             {
               "id": "DEV-192-168-111-106",
@@ -11911,8 +11708,8 @@
               "category": "Switch",
               "tier": 2,
               "role": "Distribution / PoE Switch",
-              "status": "Online",
-              "latencyMs": 3,
+              "status": "Offline",
+              "latencyMs": null,
               "uplinkPort": "SFP+-1/0/10",
               "isPlaced": false,
               "floorIdx": null,
@@ -11929,8 +11726,8 @@
               "category": "Switch",
               "tier": 2,
               "role": "Distribution / PoE Switch",
-              "status": "Online",
-              "latencyMs": 3,
+              "status": "Offline",
+              "latencyMs": null,
               "uplinkPort": "SFP+-1/0/11",
               "isPlaced": false,
               "floorIdx": null,
@@ -11957,8 +11754,8 @@
         {
           "floorIdx": 1,
           "floorLabel": "01_First_Floor",
-          "totalRooms": 2,
-          "totalDevices": 0,
+          "totalRooms": 1,
+          "totalDevices": 1,
           "rooms": [
             {
               "id": "ROOM-MW3AQGRP-LPG",
@@ -11996,59 +11793,26 @@
                 "z": 4.38
               },
               "healthSummary": {
-                "total": 0,
-                "online": 0,
+                "total": 1,
+                "online": 1,
                 "warning": 0,
                 "offline": 0
               },
-              "devices": []
-            },
-            {
-              "id": "ROOM-MW2KEBPQ-85U",
-              "roomNumber": "101",
-              "name": "Room 101",
-              "roomType": "NOC",
-              "color": "#38bdf8",
-              "vlan": "",
-              "description": "",
-              "zoneSize": {
-                "width": 3,
-                "depth": 5
-              },
-              "polygon": [
+              "devices": [
                 {
-                  "x": -8.5,
-                  "z": 2.5
-                },
-                {
-                  "x": -6.5,
-                  "z": 2
-                },
-                {
-                  "x": -5.5,
-                  "z": 3.5
-                },
-                {
-                  "x": -5.5,
-                  "z": 4.5
-                },
-                {
-                  "x": -7.5,
-                  "z": 7
+                  "id": "DEV-MW3O7I8F-L1H",
+                  "name": "Security Rack",
+                  "ip": "",
+                  "mac": "",
+                  "category": "Server",
+                  "status": "Online",
+                  "position": {
+                    "x": -6.5,
+                    "y": 4.05,
+                    "z": 4.22
+                  }
                 }
-              ],
-              "position": {
-                "x": -6.7,
-                "y": 5.6,
-                "z": 3.9
-              },
-              "healthSummary": {
-                "total": 0,
-                "online": 0,
-                "warning": 0,
-                "offline": 0
-              },
-              "devices": []
+              ]
             }
           ]
         },
@@ -12067,7 +11831,7 @@
           "rooms": []
         }
       ],
-      "unplacedDevicesCount": 42
+      "unplacedDevicesCount": 41
     }
   },
   "scanHistory": []

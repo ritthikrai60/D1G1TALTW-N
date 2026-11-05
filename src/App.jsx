@@ -248,6 +248,27 @@ export default function App() {
       // ignore cross-origin safely
     }
   }, [])
+
+  const rackulaRefreshTimeoutRef = useRef(null)
+  const refreshRackulaIframe = useCallback((targetRackId) => {
+    if (rackulaRefreshTimeoutRef.current) {
+      clearTimeout(rackulaRefreshTimeoutRef.current)
+    }
+    rackulaRefreshTimeoutRef.current = setTimeout(() => {
+      try {
+        const iframe = document.getElementById("rackula-designer-iframe")
+        if (iframe && iframe.contentWindow) {
+          iframe.contentWindow.postMessage(
+            { type: "LUDUS_RACK_UPDATED", rackId: targetRackId },
+            "*"
+          )
+          iframe.src = iframe.src
+        }
+      } catch {
+        // ignore cross-origin or detached iframe safely
+      }
+    }, 250)
+  }, [])
   const selectedRackDevice = useMemo(
     () => devices.find((d) => d.id === selectedRackId) || serverRacks[0] || null,
     [devices, selectedRackId, serverRacks]
@@ -426,15 +447,21 @@ export default function App() {
     }
   }, [devices])
 
-  // WebSocket live telemetry connection (StrictMode-safe)
+  // WebSocket live telemetry connection with auto-reconnect (StrictMode-safe)
   useEffect(() => {
     let ws = null
     let isDisposed = false
+    let reconnectTimer = null
+    let retryDelay = 1000
 
-    const connectTimer = setTimeout(() => {
+    const connect = () => {
       if (isDisposed) return
       const proto = window.location.protocol === "https:" ? "wss" : "ws"
       ws = new WebSocket(`${proto}://${window.location.host}/ws`)
+
+      ws.onopen = () => {
+        retryDelay = 1000
+      }
 
       ws.onmessage = (event) => {
         if (isDisposed) return
@@ -458,23 +485,39 @@ export default function App() {
             msg.type === "device_updated" ||
             msg.type === "device_discovered" ||
             msg.type === "state_changed" ||
+            msg.type === "rack_updated" ||
             msg.type === "monitor_cycle"
           ) {
             fetchState()
+            refreshRackulaIframe(msg.rackId)
           }
         } catch {
           // ignore malformed WS messages
         }
       }
 
-      ws.onerror = () => {
-        // silent handle
+      ws.onclose = () => {
+        if (isDisposed) return
+        reconnectTimer = setTimeout(() => {
+          connect()
+        }, retryDelay)
+        retryDelay = Math.min(retryDelay * 1.5, 10000)
       }
+
+      ws.onerror = () => {
+        // ws.onclose will schedule reconnect
+      }
+    }
+
+    const connectTimer = setTimeout(() => {
+      connect()
     }, 60)
 
     return () => {
       isDisposed = true
       clearTimeout(connectTimer)
+      if (reconnectTimer) clearTimeout(reconnectTimer)
+      if (rackulaRefreshTimeoutRef.current) clearTimeout(rackulaRefreshTimeoutRef.current)
       if (ws) {
         if (ws.readyState === WebSocket.OPEN) {
           ws.close()
@@ -483,7 +526,7 @@ export default function App() {
         }
       }
     }
-  }, [fetchState])
+  }, [fetchState, refreshRackulaIframe])
 
   // Strictly separate Placed vs Unplaced devices
   // Rule: Any device that has NOT been placed/organized by Admin (isPlaced === false)

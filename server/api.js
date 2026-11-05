@@ -552,6 +552,9 @@ export function createApiRouterAndWs() {
   router.put('/admin/devices/:id', requireAdmin, (req, res) => {
     const dev = upsertDevice({ ...(req.body || {}), id: req.params.id });
     broadcast({ type: 'device_updated', device: dev });
+    if (dev.parentRackId || dev.modelType === 'server_rack') {
+      broadcast({ type: 'rack_updated', rackId: dev.parentRackId || dev.id });
+    }
     res.json({ device: dev });
   });
 
@@ -623,7 +626,8 @@ export function createApiRouterAndWs() {
         conflictingItem: result.conflictingItem || null,
       });
     }
-    broadcast({ type: 'state_changed', snapshot: getPublicSnapshot() });
+    broadcast({ type: 'state_changed', rackId: req.params.id, snapshot: getPublicSnapshot() });
+    broadcast({ type: 'rack_updated', rackId: req.params.id });
     res.json(result);
   });
 
@@ -634,7 +638,8 @@ export function createApiRouterAndWs() {
     if (!result.ok) {
       return res.status(400).json({ error: result.error });
     }
-    broadcast({ type: 'state_changed', snapshot: getPublicSnapshot() });
+    broadcast({ type: 'state_changed', rackId: req.params.id, snapshot: getPublicSnapshot() });
+    broadcast({ type: 'rack_updated', rackId: req.params.id });
     res.json(result);
   });
 
@@ -643,7 +648,8 @@ export function createApiRouterAndWs() {
     if (!result.ok) {
       return res.status(400).json({ error: result.error });
     }
-    broadcast({ type: 'state_changed', snapshot: getPublicSnapshot() });
+    broadcast({ type: 'state_changed', rackId: req.params.id, snapshot: getPublicSnapshot() });
+    broadcast({ type: 'rack_updated', rackId: req.params.id });
     res.json(result);
   });
 
@@ -847,7 +853,8 @@ export function createApiRouterAndWs() {
       }
     }
 
-    broadcast({ type: 'state_changed', snapshot: getPublicSnapshot() });
+    broadcast({ type: 'state_changed', rackId, snapshot: getPublicSnapshot() });
+    broadcast({ type: 'rack_updated', rackId });
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('X-Rackula-Updated-At', new Date().toISOString());
     res.json({ ok: true, id: rackId, updatedAt: new Date().toISOString() });
