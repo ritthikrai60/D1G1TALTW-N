@@ -85,7 +85,7 @@ const API_TIMEOUT_MS = 10_000;
 const MAX_LAYOUT_RESPONSE_BYTES = 1024 * 1024;
 
 /** Health check timeout, shorter so availability probes fail fast (3 seconds) */
-const HEALTH_CHECK_TIMEOUT_MS = 3_000;
+const HEALTH_CHECK_TIMEOUT_MS = 8_000;
 
 /**
  * Zod schema for SavedLayoutItem

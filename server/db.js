@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 export const prisma = new PrismaClient();
+export let isPostgresAvailable = false;
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const JSON_DB_PATH = path.join(DATA_DIR, 'digital_twin_db.json');
@@ -279,8 +280,10 @@ export async function autoSeedFromDiskJsonIfEmpty() {
       });
     }
 
+    isPostgresAvailable = true;
     return true;
   } catch (err) {
+    isPostgresAvailable = false;
     console.error('[PostgreSQL] Failed during autoSeedFromDiskJsonIfEmpty:', err.message);
     return false;
   }
@@ -302,6 +305,7 @@ export async function dbLoadAll() {
     ]);
 
     const settingsMap = new Map(dbSettings.map((s) => [s.key, s.value]));
+    isPostgresAvailable = true;
 
     return {
       networks: dbNetworks.map(formatNetworkFromDb),
@@ -320,6 +324,7 @@ export async function dbLoadAll() {
       })),
     };
   } catch (err) {
+    isPostgresAvailable = false;
     console.error('[PostgreSQL] Failed in dbLoadAll, fallback will be used:', err.message);
     return null;
   }

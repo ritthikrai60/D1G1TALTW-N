@@ -3,7 +3,7 @@ import http from 'node:http';
 import https from 'node:https';
 import { load as yamlLoad, dump as yamlDump } from 'js-yaml';
 import { WebSocketServer } from 'ws';
-import { prisma } from './db.js';
+import { prisma, isPostgresAvailable } from './db.js';
 import {
   verifyAdminPassword,
   isValidAdminToken,
@@ -173,13 +173,7 @@ export function createApiRouterAndWs() {
   }
 
   // --- 0. Health, OpenAPI Spec & Interactive API Docs ---
-  router.get('/health', async (req, res) => {
-    let dbStatus = 'connected';
-    try {
-      await prisma.$queryRaw`SELECT 1`;
-    } catch {
-      dbStatus = 'disconnected';
-    }
+  router.get('/health', (req, res) => {
     res.json({
       ok: true,
       status: 'ok',
@@ -189,7 +183,7 @@ export function createApiRouterAndWs() {
       schemaVersion: '2.0.0',
       database: {
         type: 'PostgreSQL 16 (Prisma)',
-        status: dbStatus,
+        status: isPostgresAvailable ? 'connected' : 'disconnected',
       },
       uptimeSec: Math.round(process.uptime()),
       timestamp: new Date().toISOString(),
