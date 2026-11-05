@@ -343,25 +343,32 @@
     }
     const layoutParam = urlParams.get("layout");
     let targetLayoutId = layoutParam;
+    console.log(`[Rackula] Booting with serverMode=${serverMode}, layoutParam=${layoutParam}, readonly=${isReadOnly}`);
+
     if (!targetLayoutId && serverMode) {
       try {
         const apiOk = await persistenceInitPromise;
         if (apiOk) {
           const list = await listSavedLayouts();
+          console.log(`[Rackula] Discovered server layouts:`, list.map(l => l.id));
           if (list && list.length > 0) {
             targetLayoutId = list[0].id;
           }
         }
       } catch (err) {
+        console.error(`[Rackula] Failed to list server layouts for fallback:`, err);
         persistenceDebug.api("Failed to list server layouts for fallback: %O", err);
       }
     }
     if (targetLayoutId && serverMode) {
+      console.log(`[Rackula] Loading target layout from server: ${targetLayoutId}`);
       try {
         const apiOk = await persistenceInitPromise;
+        console.log(`[Rackula] Persistence probe result: ${apiOk}`);
         if (apiOk) {
           const { layout, images, failedImagesCount, failedKeys, updatedAt } =
             await loadSavedLayout(targetLayoutId);
+          console.log(`[Rackula] Successfully loaded layout:`, layout.name, `updatedAt:`, updatedAt);
           setServerBaseUpdatedAt(updatedAt ?? null);
           finalizeLayoutLoad(layout, images, failedImagesCount, {
             successMessage: null,
@@ -371,8 +378,11 @@
             canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
           });
           return;
+        } else {
+          console.warn(`[Rackula] Backend persistence was not ready or unreachable!`);
         }
       } catch (err) {
+        console.error(`[Rackula] Failed to load layout from server:`, err);
         persistenceDebug.api("Failed to load layout from URL param: %O", err);
       }
     }

@@ -231,6 +231,7 @@ export async function checkApiHealth(): Promise<boolean> {
       signal: AbortSignal.timeout(HEALTH_CHECK_TIMEOUT_MS),
     });
     if (!response.ok) {
+      console.warn(`[Rackula:Health] Probe to ${healthUrl} returned status ${response.status}`);
       log(
         "checkApiHealth: response status=%d ok=%s",
         response.status,
@@ -244,6 +245,7 @@ export async function checkApiHealth(): Promise<boolean> {
     const contentType =
       response.headers.get("content-type")?.toLowerCase() ?? "";
     if (!contentType.includes("application/json")) {
+      console.warn(`[Rackula:Health] Rejecting non-JSON content-type: ${contentType}`);
       log(
         "checkApiHealth: rejecting non-JSON health response content-type=%s",
         contentType || "(missing)",
@@ -255,17 +257,21 @@ export async function checkApiHealth(): Promise<boolean> {
     try {
       payload = await response.json();
     } catch (error) {
+      console.error(`[Rackula:Health] Failed to parse JSON payload:`, error);
       log("checkApiHealth: failed to parse JSON payload %O", error);
       return false;
     }
 
     if (!isPersistenceHealthPayload(payload)) {
+      console.warn(`[Rackula:Health] Unexpected health payload shape:`, payload);
       log("checkApiHealth: unexpected health payload shape %O", payload);
       return false;
     }
 
+    console.log(`[Rackula:Health] Persistence API is healthy at ${healthUrl}`);
     return true;
   } catch (error) {
+    console.error(`[Rackula:Health] Failed to reach persistence API at ${healthUrl}:`, error);
     log("checkApiHealth: error %O", error);
     return false;
   }
@@ -366,6 +372,7 @@ export async function loadSavedLayout(uuid: string): Promise<{
   }
 
   const updatedAt = response.headers.get("X-Rackula-Updated-At");
+  console.log(`[Rackula:Load] Loaded layout YAML for ${uuid} (${yamlContent.length} bytes, updatedAt: ${updatedAt})`);
   log(
     "loadSavedLayout: loaded uuid=%s size=%d bytes",
     uuid,
@@ -659,6 +666,7 @@ export async function saveLayoutToServer(
     headers["X-Rackula-Pre-Carrier-Migration"] = "1";
   }
 
+  console.log(`[Rackula:Save] Sending PUT ${url} with auth=${adminToken ? 'Bearer token' : 'none'} (bytes: ${yamlContent.length})...`);
   const response = await fetch(url, {
     method: "PUT",
     headers,
@@ -668,6 +676,7 @@ export async function saveLayoutToServer(
 
   if (!response.ok) {
     const error = await safeParseErrorJson(response);
+    console.error(`[Rackula:Save] Failed to save layout: status=${response.status}, error=${error.error}`);
     log(
       "saveLayoutToServer: error status=%d message=%s",
       response.status,
@@ -678,6 +687,7 @@ export async function saveLayoutToServer(
       response.status,
     );
   }
+  console.log(`[Rackula:Save] Successfully saved layout ${uuid} to server`);
 
   // The save landed (2xx), so the server has taken the durable backup; clear
   // the mark so later saves of this layout do not re-send the header.

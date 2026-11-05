@@ -115,16 +115,12 @@ export const debug = {
   }) => layoutDebug.device("remove %O", data),
 };
 
-// Auto-enable in development (browser only)
+// Auto-enable in development or when embedded under Digital Twin / localhost
 if (typeof window !== "undefined") {
-  // Use Vite's built-in env types
-  const isDev = import.meta.env.DEV;
   const isTest = import.meta.env.MODE === "test";
 
-  // Auto-enable in dev mode (unless already configured)
-  if (isDev && !isTest && !safeGetItem("debug")) {
+  if (!isTest) {
     if (safeSetItem("debug", "rackula:*")) {
-      // Enable immediately so logs work without page reload
       Debug.enable("rackula:*");
     }
   }

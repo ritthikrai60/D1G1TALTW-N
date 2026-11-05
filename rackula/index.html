@@ -29,6 +29,10 @@
     <title>Rackula - Rack Layout Designer</title>
     <script>
       window.__RACKULA_CONFIG__ = { storage: "server" };
+      try {
+        localStorage.setItem("debug", "rackula:*");
+      } catch (e) {}
+      console.log("%c[Rackula 19\" Elevation Designer] Booting in SERVER storage mode with Digital Twin", "color: #50fa7b; font-weight: bold; font-size: 13px;");
     </script>
   </head>
   <body>
