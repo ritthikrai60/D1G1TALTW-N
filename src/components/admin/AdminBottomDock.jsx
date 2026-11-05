@@ -40,6 +40,7 @@ export function AdminBottomDock({
   setAutoSnapRoomEnabled,
   activeAdminRoomId = null,
   handleDeleteRoomZone,
+  onOpenRackula,
 }) {
   const isAnyActiveMode = drawRoomZoneMode || Boolean(placingDevice) || Boolean(placingRoom)
 
@@ -49,20 +50,29 @@ export function AdminBottomDock({
       aria-label="Admin Command Toolbar"
       className="fixed bottom-3 left-1/2 -translate-x-1/2 z-30 max-w-[98vw] overflow-x-auto rounded-full border border-border/80 bg-card/90 backdrop-blur-2xl px-3.5 py-1.5 shadow-2xl pointer-events-auto flex items-center gap-2"
     >
-      {/* 1. DOCK DRAWER TOGGLE (Icon with Badge) */}
-      <div className="flex items-center gap-1 shrink-0">
-        <div className="m3-badge-anchor">
-          <M3IconButton
-            variant={activeTool ? "filled" : "tonal"}
-            onClick={() => toggleTool?.(activeTool ? null : "queue")}
-            ariaLabel="เปิด/ปิด แผงควบคุม Inspector"
-            title="เปิด/ปิด แผงควบคุม Inspector (คิว, ห้อง, สแกน)"
-            className={activeTool ? "bg-primary text-white" : ""}
+      {/* 1. DOCK DRAWER TOGGLE & RACKULA EXTENDED FAB */}
+      <div className="flex items-center gap-1.5 shrink-0">
+        <M3IconButton
+          variant={activeTool ? "filled" : "tonal"}
+          onClick={() => toggleTool?.(activeTool ? null : "rooms")}
+          ariaLabel="เปิด/ปิด แผงควบคุม Inspector"
+          title="เปิด/ปิด แผงควบคุม Inspector (ห้อง, สแกนเนอร์, อุปกรณ์ที่วางแล้ว)"
+          className={activeTool ? "bg-primary text-white" : ""}
+        >
+          <Crosshair className="h-4 w-4" />
+        </M3IconButton>
+
+        {onOpenRackula && (
+          <button
+            type="button"
+            onClick={() => onOpenRackula?.()}
+            className="flex items-center gap-1.5 px-3 h-8 rounded-full bg-primary/15 hover:bg-primary/25 border border-primary/30 text-primary font-medium text-xs transition-all shadow-sm hover:shadow active:scale-95 cursor-pointer shrink-0"
+            title="เปิดจัดการผังตู้แร็ค 19 นิ้ว (Rackula Designer) ในแท็บแยก"
           >
-            <Crosshair className="h-4 w-4" />
-          </M3IconButton>
-          {unplacedCount > 0 && <M3Badge value={unplacedCount} />}
-        </div>
+            <span className="text-sm">🖥️</span>
+            <span className="font-semibold whitespace-nowrap">ผังตู้แร็ค</span>
+          </button>
+        )}
       </div>
 
       <div className="h-6 w-2 flex items-center justify-center shrink-0">

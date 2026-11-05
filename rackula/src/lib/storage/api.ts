@@ -688,6 +688,13 @@ export async function saveLayoutToServer(
     );
   }
   console.log(`[Rackula:Save] Successfully saved layout ${uuid} to server`);
+  if (typeof BroadcastChannel !== "undefined") {
+    try {
+      const bc = new BroadcastChannel("ludus_digital_twin_sync");
+      bc.postMessage({ type: "rack_updated", rackId: uuid });
+      bc.close();
+    } catch {}
+  }
 
   // The save landed (2xx), so the server has taken the durable backup; clear
   // the mark so later saves of this layout do not re-send the header.

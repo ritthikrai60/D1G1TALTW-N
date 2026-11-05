@@ -102,8 +102,9 @@ export function AdminToolbar({
   batchRoomForm,
   setBatchRoomForm,
   handleBatchGenerateRooms,
+  onOpenRackula,
 }) {
-  // Active tool drawer: "queue" | "placed" | "rooms" | "scanner" | "add-device" | null (collapsed for full 3D view)
+  // Active tool drawer: "placed" | "rooms" | "scanner" | "add-device" | "view" | null (collapsed for full 3D view)
   const [activeTool, setActiveTool] = useState("rooms")
 
   const toggleTool = (toolId) => {
@@ -139,19 +140,17 @@ export function AdminToolbar({
                 </div>
                 <div className="min-w-0">
                   <CardTitle className="text-xs sm:text-sm truncate">
-                    {activeTool === "queue" && `คิวอุปกรณ์รอจัดวาง 3D (${unplacedDevices.length})`}
                     {activeTool === "placed" && `อุปกรณ์ที่วางบนตึกแล้ว (${placedDevices.length})`}
                     {activeTool === "rooms" && `จัดการหมายเลขห้อง & โซน 3D (${rooms.length})`}
                     {activeTool === "scanner" && "สแกนเครือข่าย Multi-Subnet & IP Probe"}
-                    {activeTool === "add-device" && "เพิ่มอุปกรณ์ใหม่เข้าคิวรอจัดวาง"}
+                    {activeTool === "add-device" && "เพิ่มอุปกรณ์ใหม่เข้าสู่ระบบ"}
                     {activeTool === "view" && "มุมมอง เลเยอร์ และ Export"}
                   </CardTitle>
                   <CardDescription className="text-[11px] truncate">
-                    {activeTool === "queue" && "เลือกอุปกรณ์แล้วคลิกวางลงบนพื้นห้องในโมเดล 3D"}
-                    {activeTool === "placed" && "ตรวจสอบ ย้ายจุดติดตั้ง หรือถอนหมุดกลับเข้าคิว"}
+                    {activeTool === "placed" && "ตรวจสอบ ย้ายจุดติดตั้ง หรือถอนหมุดกลับเข้าคลัง"}
                     {activeTool === "rooms" && "คลิกกำหนดเลขห้องบน 3D, ไฮไลต์กรอบห้อง และสร้างห้องตาม Pattern"}
                     {activeTool === "scanner" && "ค้นหาอุปกรณ์ในวง LAN/WAN/VLAN อัตโนมัติ"}
-                    {activeTool === "add-device" && "บันทึกอุปกรณ์ใหม่เข้าสู่คิวรอจัดวางของ Admin"}
+                    {activeTool === "add-device" && "บันทึกอุปกรณ์ใหม่เข้าสู่ฐานข้อมูลระบบ"}
                     {activeTool === "view" && "สลับชั้น เลเยอร์ 3D และบันทึกค่าเริ่มต้นสำหรับผู้ใช้ทั่วไป"}
                   </CardDescription>
                 </div>
@@ -172,7 +171,6 @@ export function AdminToolbar({
             {/* DOCK TABS: switch between admin tools without returning to the bottom toolbar */}
             <div role="tablist" aria-label="Admin tools" className="flex gap-1 border-b border-border bg-card px-2 py-1.5 overflow-x-auto items-center">
               {[
-                { id: "queue", label: "คิวรอวาง", icon: "📥", count: unplacedDevices.length },
                 { id: "placed", label: "วางแล้ว", icon: "📌", count: placedDevices.length },
                 { id: "rooms", label: "ห้อง", icon: "🏷️", count: rooms.length },
                 { id: "scanner", label: "สแกน", icon: "📡" },
@@ -208,91 +206,22 @@ export function AdminToolbar({
               <Server className="h-3.5 w-3.5 text-primary" />
               <span>วางตู้ Rack 3D</span>
             </Button>
+            {onOpenRackula && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 shrink-0 rounded-full text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/15 cursor-pointer px-3"
+                onClick={() => onOpenRackula?.()}
+                title="เปิดจัดการผังตู้แร็ค 19 นิ้ว (Rackula Designer)"
+              >
+                <span>🖥️</span>
+                <span>ผังตู้แร็ค</span>
+              </Button>
+            )}
               </div>
 
             <CardContent className="p-3 flex-1 overflow-y-auto flex flex-col space-y-3">
-              {/* TOOL PANEL 1: UNPLACED DISCOVERED QUEUE */}
-              {activeTool === "queue" && (
-                <div className="flex-1 flex flex-col space-y-2.5 overflow-hidden">
-                  <div className="relative">
-                    <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
-                    <Input
-                      value={adminSearch}
-                      onChange={(e) => setAdminSearch(e.target.value)}
-                      placeholder="ค้นหา IP, ชื่อ, MAC, ยี่ห้อ ในคิวรอวาง..."
-                      className="pl-8 h-8 text-xs"
-                    />
-                  </div>
-
-                  <div className="text-[11px] text-muted-foreground bg-secondary/30 rounded-md px-2.5 py-1.5 border border-border">
-                    อุปกรณ์ในคิวนี้จะ<strong>ยังไม่ปรากฏบนหน้าแสดงผลหลัก</strong> จนกว่าคุณจะกดปุ่ม{" "}
-                    <span className="text-primary font-semibold">"วางบนตึก 3D"</span>{" "}
-                    แล้วคลิกเลือกจุดติดตั้งบนอาคาร (รองรับ Auto-Snap เข้าเลขห้องอัตโนมัติ)
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                    {filteredUnplacedDevices.length === 0 ? (
-                      <div className="text-center py-8 text-xs text-muted-foreground">
-                        ไม่มีอุปกรณ์ค้างในคิวรอจัดวาง
-                      </div>
-                    ) : (
-                      filteredUnplacedDevices.map((dev) => (
-                        <div
-                          key={dev.id}
-                          className={`rounded-lg border p-2.5 transition space-y-2 ${
-                            placingDevice?.id === dev.id
-                              ? "border-primary bg-primary/10"
-                              : "border-border bg-secondary/20 hover:bg-secondary/40"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <div className="text-xs font-bold truncate flex items-center gap-1.5">
-                                <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                                {dev.name || dev.ip}
-                              </div>
-                              <div className="text-[11px] font-mono text-muted-foreground">
-                                {dev.ip} · {dev.mac || "No MAC"}
-                              </div>
-                              <div className="text-[10px] text-muted-foreground truncate">
-                                {dev.vendor || "Unknown Vendor"} · พอร์ตเปิด{" "}
-                                {(dev.openPorts || []).length} พอร์ต
-                              </div>
-                            </div>
-                            <Badge variant="info" className="text-[10px] uppercase shrink-0">
-                              {dev.category || "Network"}
-                            </Badge>
-                          </div>
-
-                          <div className="flex items-center gap-1.5">
-                            <Button
-                              size="sm"
-                              variant={placingDevice?.id === dev.id ? "secondary" : "default"}
-                              className="flex-1 h-7 text-xs"
-                              onClick={() => startPlacingDevice(dev)}
-                            >
-                              <Crosshair className="h-3.5 w-3.5 mr-1" />
-                              {placingDevice?.id === dev.id
-                                ? "คลิกบนตึก 3D..."
-                                : "วางบนตึก 3D"}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2 text-xs"
-                              onClick={() => onSelectDevice(dev.id)}
-                            >
-                              ดูข้อมูล
-                            </Button>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* TOOL PANEL 2: PLACED DEVICES MANAGER */}
+              {/* TOOL PANEL: PLACED DEVICES MANAGER */}
               {activeTool === "placed" && (
                 <div className="flex-1 overflow-y-auto space-y-2 pr-1">
                   {placedDevices.length === 0 ? (
@@ -1037,6 +966,7 @@ export function AdminToolbar({
         setAutoSnapRoomEnabled={setAutoSnapRoomEnabled}
         activeAdminRoomId={activeAdminRoomId}
         handleDeleteRoomZone={handleDeleteRoomZone}
+        onOpenRackula={onOpenRackula}
       />
     </>
   )

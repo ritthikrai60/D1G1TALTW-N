@@ -26,9 +26,10 @@
   let { activeTab, onchange, oncollapse }: Props = $props();
 
   const tabs: { id: SidebarTab; label: string; icon: string }[] = [
-    { id: "layouts", label: "Layouts", icon: "▦" },
-    { id: "racks", label: "Racks", icon: "▤" },
+    { id: "inventory", label: "Inventory", icon: "📦" },
     { id: "devices", label: "Devices", icon: "⬡" },
+    { id: "racks", label: "Racks", icon: "▤" },
+    { id: "layouts", label: "Layouts", icon: "▦" },
   ];
 
   function handleValueChange(value: string | undefined) {

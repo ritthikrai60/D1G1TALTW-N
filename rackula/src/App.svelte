@@ -19,6 +19,7 @@
   import MobileHistoryControls from "$lib/components/mobile/MobileHistoryControls.svelte";
   import RackIndicator from "$lib/components/mobile/RackIndicator.svelte";
   import SidebarTabs from "$lib/components/SidebarTabs.svelte";
+  import InventoryPalette from "$lib/components/InventoryPalette.svelte";
   import RackList from "$lib/components/RackList.svelte";
   import LayoutsLibrary from "$lib/components/LayoutsLibrary.svelte";
   import PersistenceEffects from "$lib/components/PersistenceEffects.svelte";
@@ -113,9 +114,10 @@
 
   // The active sidebar tab name, shown as the collapsed strip's rotated label.
   const sidebarTabLabels: Record<typeof uiStore.sidebarTab, string> = {
-    layouts: "Layouts",
-    racks: "Racks",
+    inventory: "Inventory",
     devices: "Devices",
+    racks: "Racks",
+    layouts: "Layouts",
   };
   const sidebarTabLabel = $derived(sidebarTabLabels[uiStore.sidebarTab]);
 
@@ -362,6 +364,52 @@
     }
     if (targetLayoutId && serverMode) {
       console.log(`[Rackula] Loading target layout from server: ${targetLayoutId}`);
+      async function reloadCurrentLayout() {
+        if (!targetLayoutId) return;
+        try {
+          const { layout, images, failedImagesCount, failedKeys, updatedAt } =
+            await loadSavedLayout(targetLayoutId);
+          setServerBaseUpdatedAt(updatedAt ?? null);
+          finalizeLayoutLoad(layout, images, failedImagesCount, {
+            successMessage: null,
+            failedKeys,
+          });
+          console.log(`[Rackula:Sync] Automatically updated layout ${targetLayoutId} from real-time push`);
+        } catch (err) {
+          console.error(`[Rackula:Sync] Auto-reload failed:`, err);
+        }
+      }
+
+      // 1. Cross-tab Zero-Latency BroadcastChannel sync
+      if (typeof BroadcastChannel !== "undefined") {
+        const syncChannel = new BroadcastChannel("ludus_digital_twin_sync");
+        syncChannel.onmessage = (event) => {
+          if (event.data?.type === "rack_updated" || event.data?.type === "state_changed") {
+            if (!event.data?.rackId || event.data?.rackId === targetLayoutId) {
+              reloadCurrentLayout();
+            }
+          }
+        };
+      }
+
+      // 2. Connect to WebSocket server for real-time updates from backend
+      try {
+        const wsProto = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const ws = new WebSocket(`${wsProto}//${window.location.host}/ws`);
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === "rack_updated" || data.type === "state_changed") {
+              if (!data.rackId || data.rackId === targetLayoutId) {
+                reloadCurrentLayout();
+              }
+            }
+          } catch {}
+        };
+      } catch (e) {
+        console.warn(`[Rackula:WS] WebSocket setup notice:`, e);
+      }
+
       try {
         const apiOk = await persistenceInitPromise;
         console.log(`[Rackula] Persistence probe result: ${apiOk}`);
@@ -859,7 +907,9 @@
                 oncollapse={handleCollapseSidebar}
               />
               <div class="sidebar-content">
-                {#if uiStore.sidebarTab === "devices"}
+                {#if uiStore.sidebarTab === "inventory"}
+                  <InventoryPalette />
+                {:else if uiStore.sidebarTab === "devices"}
                   <DevicePalette
                     ondeviceselect={handleDevicePaletteSelect}
                     oncreatedevice={handleAddDevice}

@@ -507,6 +507,20 @@ export default function App() {
       }
     }
 
+    // Cross-tab Zero-Latency BroadcastChannel listener
+    let syncChannel = null
+    if (typeof BroadcastChannel !== "undefined") {
+      try {
+        syncChannel = new BroadcastChannel("ludus_digital_twin_sync")
+        syncChannel.onmessage = (event) => {
+          if (event.data?.type === "rack_updated" || event.data?.type === "state_changed") {
+            fetchState()
+            refreshRackulaIframe(event.data?.rackId)
+          }
+        }
+      } catch {}
+    }
+
     const connectTimer = setTimeout(() => {
       connect()
     }, 60)
@@ -514,6 +528,10 @@ export default function App() {
     return () => {
       isDisposed = true
       clearTimeout(connectTimer)
+      if (syncChannel) {
+        syncChannel.close()
+        syncChannel = null
+      }
       if (reconnectTimer) clearTimeout(reconnectTimer)
       if (rackulaRefreshTimeoutRef.current) clearTimeout(rackulaRefreshTimeoutRef.current)
       if (ws) {
@@ -2883,6 +2901,7 @@ export default function App() {
           batchRoomForm={batchRoomForm}
           setBatchRoomForm={setBatchRoomForm}
           handleBatchGenerateRooms={handleBatchGenerateRooms}
+          onOpenRackula={openRackulaWindow}
         />
       )}
 

@@ -302,6 +302,28 @@ export function createApiRouterAndWs() {
     res.json({ device: dev });
   });
 
+  router.get('/inventory', (req, res) => {
+    const unplaced = getDevices().filter(
+      (d) => !d.isPlaced && d.modelType !== 'server_rack' && !d.parentRackId
+    );
+    res.json({
+      ok: true,
+      count: unplaced.length,
+      devices: unplaced.map((d) => ({
+        id: d.id,
+        name: d.name,
+        ip: d.ip || '',
+        mac: d.mac || '',
+        vendor: d.vendor || '',
+        category: d.category || 'Other',
+        modelType: d.modelType || 'pin',
+        status: d.status || 'Offline',
+        uHeight: d.rackConfig?.uHeight || (d.category === 'Server' ? 2 : 1),
+        isFullDepth: d.rackConfig?.isFullDepth ?? true,
+      })),
+    });
+  });
+
   router.get('/export', (req, res) => {
     res.json(getPublicSnapshot());
   });
@@ -845,6 +867,11 @@ export function createApiRouterAndWs() {
           dev.uPosition = targetPos;
           dev.rackFace = targetFace;
           if (targetName) dev.name = targetName;
+          dev.isPlaced = true;
+          dev.floorIdx = rack.floorIdx;
+          dev.roomId = rack.roomId;
+          dev.roomNumber = rack.roomNumber;
+          dev.position = rack.position ? { ...rack.position } : null;
           upsertDevice(dev);
         } else {
           // If a new device was placed from Rackula template library
