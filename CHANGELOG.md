@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Authentication Resilience**: Enforced strict password verification in `server/store.js` disabling hardcoded fallback defaults (`admin123`/`admin`) when a dedicated password hash is configured.
 
 ### Fixed
+- **Express 5 SPA Fallback Compatibility**: Replaced deprecated wildcard route `app.get('*', ...)` with universal fallback middleware `app.use((req, res) => ...)` in `server/index.js`, eliminating `PathError: Missing parameter name at index 1: *` on startup.
 - **Three.js WebGL VRAM Memory Leak**: Implemented recursive resource deallocation (`safeDisposeGroup`) for removed meshes, textures, and geometry, with safe guards for shared rack models (`isSharedModelInstance`).
 - **Asset Cache Busting Overhead**: Removed dynamic timestamp query strings from `/models/building.glb` in `ThreeViewport.jsx`, allowing browser HTTP caching of the 3.36 MB 3D asset.
 - **Network Scanner Command Injection Vulnerability**: Replaced raw shell string execution (`execAsync`) in `server/scanner.js` with parameterized binary execution (`execFileAsync`) and strict IPv4 input validation regex.
@@ -42,3 +43,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0] - 2026-10-31
 - Initial major baseline release with LUDUS 4-story architectural CAD model, Three.js 3D viewport, Rackula rack elevation designer, multi-network ping scanner, and admin dashboard.
+

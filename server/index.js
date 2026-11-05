@@ -25,7 +25,7 @@ const distDir = path.resolve(process.cwd(), 'dist');
 if (fs.existsSync(distDir)) {
   app.use(express.static(distDir));
   // SPA fallback for `/` and `/admin`
-  app.get('*', (req, res) => {
+  app.use((req, res) => {
     res.sendFile(path.join(distDir, 'index.html'));
   });
 }
