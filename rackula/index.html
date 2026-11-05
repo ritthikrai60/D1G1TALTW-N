@@ -29,6 +29,7 @@
     <title>Rackula - Rack Layout Designer</title>
     <script>
       window.__RACKULA_CONFIG__ = { storage: "server" };
+      window.__RACKULA_CLIENT_ID__ = Math.random().toString(36).slice(2);
       try {
         localStorage.setItem("debug", "rackula:*");
       } catch (e) {}

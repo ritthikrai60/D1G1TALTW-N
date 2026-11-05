@@ -690,8 +690,9 @@ export async function saveLayoutToServer(
   console.log(`[Rackula:Save] Successfully saved layout ${uuid} to server`);
   if (typeof BroadcastChannel !== "undefined") {
     try {
+      const clientId = typeof window !== "undefined" ? (window as any).__RACKULA_CLIENT_ID__ : undefined;
       const bc = new BroadcastChannel("ludus_digital_twin_sync");
-      bc.postMessage({ type: "rack_updated", rackId: uuid });
+      bc.postMessage({ type: "rack_updated", rackId: uuid, sender: clientId });
       bc.close();
     } catch {}
   }

@@ -65,7 +65,10 @@
     if (typeof BroadcastChannel !== "undefined") {
       syncChannel = new BroadcastChannel("ludus_digital_twin_sync");
       syncChannel.onmessage = (event) => {
-        if (event.data?.type === "state_changed" || event.data?.type === "rack_updated") {
+        if (
+          event.data?.type === "state_changed" ||
+          event.data?.type === "rack_updated"
+        ) {
           fetchInventory();
         }
       };
@@ -96,7 +99,7 @@
         dev.mac.toLowerCase().includes(q) ||
         dev.vendor.toLowerCase().includes(q);
       return matchCat && matchSearch;
-    })
+    }),
   );
 
   function getCategoryColor(cat: string): string {
@@ -148,7 +151,9 @@
     event.dataTransfer.setData("text/plain", serializeDragData(dragData));
     event.dataTransfer.effectAllowed = "copy";
     setCurrentDragData(dragData);
-    hideNativeDragGhost(event);
+    if (event.dataTransfer) {
+      hideNativeDragGhost(event.dataTransfer);
+    }
     showDragTooltip(event, { device: type, isCompatible: true });
   }
 
@@ -187,7 +192,11 @@
   </div>
 
   <!-- Category filter chips -->
-  <div class="inventory-categories" role="tablist" aria-label="Device categories">
+  <div
+    class="inventory-categories"
+    role="tablist"
+    aria-label="Device categories"
+  >
     {#each categories as cat}
       <button
         type="button"
@@ -207,11 +216,15 @@
     {:else if error}
       <div class="inventory-error">
         <span>⚠️ {error}</span>
-        <button type="button" onclick={fetchInventory} class="retry-btn">Retry</button>
+        <button type="button" onclick={fetchInventory} class="retry-btn"
+          >Retry</button
+        >
       </div>
     {:else if filteredDevices.length === 0}
       <div class="inventory-empty">
-        {searchQuery ? "No devices match search" : "No unplaced devices in inventory"}
+        {searchQuery
+          ? "No devices match search"
+          : "No unplaced devices in inventory"}
       </div>
     {:else}
       {#each filteredDevices as dev (dev.id)}
@@ -228,7 +241,10 @@
             <IconGrip size={ICON_SIZE.sm} />
           </div>
 
-          <div class="item-status" class:status--online={dev.status === "Online"}></div>
+          <div
+            class="item-status"
+            class:status--online={dev.status === "Online"}
+          ></div>
 
           <div class="item-content">
             <div class="item-row-top">
@@ -240,7 +256,9 @@
               <span class="item-ip">{dev.ip || "No IP"}</span>
               <span
                 class="item-category"
-                style="border-color: {getCategoryColor(dev.category)}40; color: {getCategoryColor(dev.category)}"
+                style="border-color: {getCategoryColor(
+                  dev.category,
+                )}40; color: {getCategoryColor(dev.category)}"
               >
                 {dev.category}
               </span>
@@ -398,7 +416,10 @@
     border: 1px solid var(--colour-border, #334155);
     border-radius: 8px;
     cursor: grab;
-    transition: transform 0.1s, border-color 0.15s, background-color 0.15s;
+    transition:
+      transform 0.1s,
+      border-color 0.15s,
+      background-color 0.15s;
     user-select: none;
   }
   .inventory-item:hover {

@@ -222,7 +222,9 @@ function getTransparentDragImage(): HTMLCanvasElement {
  * @param dataTransfer - The DataTransfer object from drag event
  */
 export function hideNativeDragGhost(dataTransfer: DataTransfer): void {
-  dataTransfer.setDragImage(getTransparentDragImage(), 0, 0);
+  if (dataTransfer && typeof dataTransfer.setDragImage === "function") {
+    dataTransfer.setDragImage(getTransparentDragImage(), 0, 0);
+  }
 }
 
 /**

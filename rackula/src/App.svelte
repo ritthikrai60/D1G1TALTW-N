@@ -385,8 +385,14 @@
         const syncChannel = new BroadcastChannel("ludus_digital_twin_sync");
         syncChannel.onmessage = (event) => {
           if (event.data?.type === "rack_updated" || event.data?.type === "state_changed") {
+            const myClientId = typeof window !== "undefined" ? (window as any).__RACKULA_CLIENT_ID__ : null;
+            // Ignore echo from our own tab
+            if (event.data?.sender && event.data.sender === myClientId) return;
+
             if (!event.data?.rackId || event.data?.rackId === targetLayoutId) {
-              reloadCurrentLayout();
+              if (isReadOnly) {
+                reloadCurrentLayout();
+              }
             }
           }
         };
@@ -401,7 +407,9 @@
             const data = JSON.parse(event.data);
             if (data.type === "rack_updated" || data.type === "state_changed") {
               if (!data.rackId || data.rackId === targetLayoutId) {
-                reloadCurrentLayout();
+                if (isReadOnly) {
+                  reloadCurrentLayout();
+                }
               }
             }
           } catch {}
