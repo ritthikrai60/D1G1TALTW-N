@@ -206,34 +206,45 @@ export default function App() {
   // Selected 3D Server Rack for Rackula 19-Inch Elevation Designer
   const [selectedRackId, setSelectedRackId] = useState(null)
   const [rackModalOpen, setRackModalOpen] = useState(false)
-  // Main view mode: '3d' (Three.js 3D Viewport) | 'rackula' (Embedded Rackula Designer)
-  const [mainViewMode, setMainViewMode] = useState("3d")
 
   const serverRacks = useMemo(
     () => devices.filter((d) => d.modelType === "server_rack" && d.isPlaced === true),
     [devices]
   )
 
-  // Keep selectedRackId and mainViewMode synchronized with active 3D server racks
+  // Keep selectedRackId synchronized with active 3D server racks
   useEffect(() => {
     if (serverRacks.length === 0) {
       if (selectedRackId !== null) setSelectedRackId(null);
-      if (mainViewMode === "rackula") {
-        setMainViewMode("3d");
-        toast({
-          title: "สลับกลับมุมมอง 3D",
-          description: "ไม่มีตู้แร็คบนอาคาร 3D ที่เปิดอยู่",
-        });
-      }
     } else if (selectedRackId && !serverRacks.some((r) => r.id === selectedRackId)) {
-      const fallbackRack = serverRacks[0];
-      setSelectedRackId(fallbackRack.id);
-      toast({
-        title: "สลับตู้แร็คอัตโนมัติ",
-        description: "ตู้แร็คเดิมถูกนำออกแล้ว สลับไปยัง ",
-      });
+      setSelectedRackId(serverRacks[0].id);
     }
-  }, [serverRacks, selectedRackId, mainViewMode, toast])
+  }, [serverRacks, selectedRackId])
+
+  // Open Rackula 19-Inch Elevation Designer in a dedicated full-screen tab
+  const openRackulaWindow = useCallback((rackId) => {
+    const targetId = rackId || selectedRackId || serverRacks[0]?.id;
+    if (!targetId) {
+      toast({
+        title: "ไม่พบตู้แร็ค",
+        description: "ยังไม่มีตู้แร็คที่จัดวางบนอาคาร 3D",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSelectedRackId(targetId);
+    const params = new URLSearchParams({ layout: targetId });
+    if (isAdminRoute && adminToken) {
+      params.set("token", adminToken);
+    } else {
+      params.set("readonly", "1");
+    }
+    window.open(`/rackula/?${params.toString()}`, "_blank");
+    toast({
+      title: "🚀 เปิดผังตู้แร็คในแท็บแยกแล้ว",
+      description: `เปิด Rackula Designer สำหรับตู้แร็ค [${targetId}] เต็มจอเรียบร้อย`,
+    });
+  }, [selectedRackId, serverRacks, isAdminRoute, adminToken, toast]);
 
   const notifyRackulaOfRemoval = useCallback((removedRackId) => {
     try {
@@ -285,19 +296,6 @@ export default function App() {
     () => sessionStorage.getItem("dt_admin_token") || ""
   )
   const [adminAuthenticated, setAdminAuthenticated] = useState(false)
-
-  // Compute Rackula Sub-App URL with security token (admin) or readonly flag (viewer)
-  const rackulaIframeSrc = useMemo(() => {
-    const rackId = selectedRackId || serverRacks[0]?.id;
-    if (!rackId) return "";
-    const params = new URLSearchParams({ layout: rackId });
-    if (isAdminRoute && adminToken) {
-      params.set("token", adminToken);
-    } else {
-      params.set("readonly", "1");
-    }
-    return `/rackula/?${params.toString()}`;
-  }, [selectedRackId, serverRacks, isAdminRoute, adminToken])
   const [loginDialogOpen, setLoginDialogOpen] = useState(false)
   const [passwordInput, setPasswordInput] = useState("")
   const [loginError, setLoginError] = useState("")
@@ -1845,13 +1843,7 @@ export default function App() {
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-background text-foreground select-none">
       {/* 1. THREE.JS 3D BUILDING VIEWPORT */}
-      <div
-        className={
-          mainViewMode === "rackula"
-            ? "absolute inset-0 invisible pointer-events-none -z-10"
-            : "w-full h-full"
-        }
-      >
+      <div className="w-full h-full">
         <ThreeViewport
           ref={viewportRef}
           theme={theme}
@@ -1897,7 +1889,7 @@ export default function App() {
             const target = devices.find((d) => d.id === devId)
             if (target?.modelType === "server_rack") {
               setSelectedRackId(devId)
-              setMainViewMode("rackula")
+              openRackulaWindow(devId)
               if (isAdminRoute && adminAuthenticated) {
                 setActiveAdminDeviceId(devId)
                 if (target.roomId) setActiveAdminRoomId(target.roomId)
@@ -1923,112 +1915,19 @@ export default function App() {
       </div>
 
       {/* Floating Material 3 Action Control (Quick Camera Reset & Orbit FAB) */}
-      {mainViewMode === "3d" && (
-        <div className="fixed bottom-6 right-6 z-20 pointer-events-auto flex flex-col items-end gap-2 animate-in fade-in duration-200">
-          <M3Fab
-            variant="surface"
-            size="medium"
-            label="รีเซ็ตมุมกล้อง 3D"
-            icon={<RotateCcw className="h-4 w-4 text-primary" />}
-            onClick={() => {
-              updateView({ selectedFloor: "all" })
-              viewportRef.current?.resetCamera()
-            }}
-            title="รีเซ็ตมุมกล้อง 3D (Reset Orbit Camera)"
-          />
-        </div>
-      )}
-
-      {/* RACKULA 19-INCH ELEVATION DESIGNER FULL-VIEW CONTAINER */}
-      {mainViewMode === "rackula" && (
-        <div className="absolute inset-0 z-20 pt-16 bg-[#191a22] flex flex-col animate-in fade-in duration-200">
-          {/* Top Rackula Context & Quick Controls Strip */}
-          <div className="h-11 px-4 bg-[#14151b] border-b border-[#282a36] flex items-center justify-between text-xs select-none">
-            <div className="flex items-center gap-3">
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs border-[#44475a] text-[#f8f8f2] hover:bg-[#282a36] gap-1.5"
-                onClick={() => setMainViewMode("3d")}
-              >
-                <RotateCcw className="h-3 w-3 text-primary" />
-                <span>⬅️ กลับไปที่อาคาร 3D</span>
-              </Button>
-              <span className="text-[#6272a4]">|</span>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-[#bd93f9]">
-                  📍 ตู้แร็ค: {selectedRackDevice?.name || selectedRackId || "Rack"}
-                </span>
-                {selectedRackDevice?.roomNumber && (
-                  <Badge variant="secondary" className="text-[10px] bg-sky-500/15 text-sky-300 border-sky-500/30">
-                    ห้อง {selectedRackDevice.roomNumber} (ชั้น {Number(selectedRackDevice.floorIdx ?? 0) + 1})
-                  </Badge>
-                )}
-                <span className="text-muted-foreground text-[11px] hidden sm:inline">
-                  (ขนาด {selectedRackDevice?.rackConfig?.rackHeight || 42}U EIA-310)
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {/* Rack Selector Dropdown if multiple racks exist */}
-              {serverRacks.length > 1 && (
-                <div className="flex items-center gap-1.5 text-xs text-[#94a3b8]">
-                  <span className="hidden sm:inline">สลับตู้แร็ค:</span>
-                  <select
-                    value={selectedRackId || ""}
-                    onChange={(e) => setSelectedRackId(e.target.value)}
-                    className="h-7 px-2 text-xs rounded bg-[#1e1f29] text-[#f8f8f2] border border-[#44475a] focus:outline-none"
-                  >
-                    {serverRacks.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name} (ห้อง {r.roomNumber || "-"})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs border-[#44475a] text-[#8be9fd] hover:bg-[#282a36]"
-                onClick={() => {
-                  const iframe = document.getElementById("rackula-designer-iframe");
-                  if (iframe) iframe.src = iframe.src;
-                }}
-                title="รีเฟรชผังตู้แร็ค"
-              >
-                🔄 รีเฟรช
-              </Button>
-
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs border-[#44475a] text-[#50fa7b] hover:bg-[#282a36]"
-                onClick={() => {
-                  window.open(rackulaIframeSrc || "/rackula/", "_blank");
-                }}
-                title="เปิดในแท็บใหม่เต็มจอ"
-              >
-                ↗️ เปิดเต็มจอแยกแท็บ
-              </Button>
-            </div>
-          </div>
-
-          {/* Embedded Native Rackula Svelte 5 Sub-App */}
-          <div className="flex-1 w-full h-full relative">
-            <iframe
-              id="rackula-designer-iframe"
-              key={rackulaIframeSrc}
-              src={rackulaIframeSrc}
-              title="Rackula Rack Elevation Designer"
-              className="w-full h-full border-0"
-              allow="clipboard-read; clipboard-write"
-            />
-          </div>
-        </div>
-      )}
+      <div className="fixed bottom-6 right-6 z-20 pointer-events-auto flex flex-col items-end gap-2 animate-in fade-in duration-200">
+        <M3Fab
+          variant="surface"
+          size="medium"
+          label="รีเซ็ตมุมกล้อง 3D"
+          icon={<RotateCcw className="h-4 w-4 text-primary" />}
+          onClick={() => {
+            updateView({ selectedFloor: "all" })
+            viewportRef.current?.resetCamera()
+          }}
+          title="รีเซ็ตมุมกล้อง 3D (Reset Orbit Camera)"
+        />
+      </div>
 
       {/* 2. TOP FLOATING TELEMETRY BAR (Material 3 Elevated App Bar) */}
       <header className="fixed top-3 left-3 right-3 z-30 flex items-center justify-between gap-3 pointer-events-none">
@@ -2067,28 +1966,6 @@ export default function App() {
             </span>
           </div>
         </div>
-
-        {/* Center: Context Navigation (When in Rackula Elevation Mode, show prominent Back-to-3D return bar) */}
-        {mainViewMode === "rackula" ? (
-          <div className="flex items-center gap-2 rounded-2xl border border-primary/40 bg-accent/80 backdrop-blur-xl px-3 py-1.5 shadow-xl pointer-events-auto animate-in fade-in">
-            <M3Button
-              variant="tonal"
-              className="text-xs font-bold"
-              icon={<Building2 className="h-4 w-4" />}
-              onClick={() => setMainViewMode("3d")}
-            >
-              ← กลับสู่อาคาร 3D (Building View)
-            </M3Button>
-            <div className="h-5 w-px bg-primary/30" />
-            <div className="flex items-center gap-1.5 text-xs text-primary">
-              <Server className="h-4 w-4 text-primary" />
-              <span className="font-semibold hidden sm:inline">ตู้แร็ค:</span>
-              <span className="font-mono text-[11px] px-2 py-0.5 rounded-full bg-accent/60 text-primary border border-primary/40 max-w-[180px] truncate">
-                {selectedRackDevice?.name || selectedRackId || "19-Inch Server Rack"}
-              </span>
-            </div>
-          </div>
-        ) : null}
 
         {/* Right: Live Telemetry Counters (Placed Only) + Theme Toggle */}
         <div className="flex items-center gap-2 rounded-2xl border border-border bg-card/85 backdrop-blur-xl px-3 py-1.5 shadow-xl pointer-events-auto">
@@ -2841,38 +2718,36 @@ export default function App() {
         )}
 
       {/* QUICK CONTROLS: floor switcher + reset view (viewer shortcuts; full controls remain in the menu) */}
-      {mainViewMode !== "rackula" && (
-        <nav
-          aria-label="Quick floor controls"
-          className={`fixed bottom-4 z-20 flex items-center gap-1.5 rounded-full border border-border/80 bg-card/90 backdrop-blur-xl px-2 py-1 shadow-lg transition-[left] ${
-            menuPinned && menuOpen ? "left-[376px] sm:left-[416px]" : "left-4"
-          } ${isAdminRoute ? "hidden md:flex" : ""}`}
+      <nav
+        aria-label="Quick floor controls"
+        className={`fixed bottom-4 z-20 flex items-center gap-1.5 rounded-full border border-border/80 bg-card/90 backdrop-blur-xl px-2 py-1 shadow-lg transition-[left] ${
+          menuPinned && menuOpen ? "left-[376px] sm:left-[416px]" : "left-4"
+        } ${isAdminRoute ? "hidden md:flex" : ""}`}
+      >
+        <M3SegmentedButtonSet>
+          {[{ key: "all", label: "All" }, ...FLOORS.map((fl) => ({ key: String(fl.index), label: fl.shortLabel }))].map((f) => (
+            <M3SegmentedButton
+              key={f.key}
+              label={f.label}
+              selected={String(viewState.selectedFloor) === f.key}
+              ariaLabel={`เลือกชั้น ${f.label}`}
+              onClick={() => updateView({ selectedFloor: f.key })}
+            />
+          ))}
+        </M3SegmentedButtonSet>
+        <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
+        <M3IconButton
+          variant="standard"
+          ariaLabel="รีเซ็ตมุมกล้อง 3D (Reset Orbit)"
+          title="รีเซ็ตมุมกล้อง 3D"
+          onClick={() => {
+            updateView({ selectedFloor: "all" })
+            viewportRef.current?.resetCamera()
+          }}
         >
-          <M3SegmentedButtonSet>
-            {[{ key: "all", label: "All" }, ...FLOORS.map((fl) => ({ key: String(fl.index), label: fl.shortLabel }))].map((f) => (
-              <M3SegmentedButton
-                key={f.key}
-                label={f.label}
-                selected={String(viewState.selectedFloor) === f.key}
-                ariaLabel={`เลือกชั้น ${f.label}`}
-                onClick={() => updateView({ selectedFloor: f.key })}
-              />
-            ))}
-          </M3SegmentedButtonSet>
-          <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
-          <M3IconButton
-            variant="standard"
-            ariaLabel="รีเซ็ตมุมกล้อง 3D (Reset Orbit)"
-            title="รีเซ็ตมุมกล้อง 3D"
-            onClick={() => {
-              updateView({ selectedFloor: "all" })
-              viewportRef.current?.resetCamera()
-            }}
-          >
-            <RotateCcw className="h-4 w-4 text-primary" />
-          </M3IconButton>
-        </nav>
-      )}
+          <RotateCcw className="h-4 w-4 text-primary" />
+        </M3IconButton>
+      </nav>
 
       <RackNameDialog
         open={rackNameDialogOpen}
@@ -2896,12 +2771,13 @@ export default function App() {
         menuOpen={menuOpen}
         menuPinned={menuPinned}
         networks={networks}
+        onOpenRackula={openRackulaWindow}
         placedDevices={placedDevices}
         roomDirectorySearch={roomDirectorySearch}
         rooms={rooms}
         setDirectorySearch={setDirectorySearch}
         setExpandedDirectoryRoomId={setExpandedDirectoryRoomId}
-        setMainViewMode={setMainViewMode}
+        setMainViewMode={openRackulaWindow}
         setMenuOpen={setMenuOpen}
         setModalOpen={setModalOpen}
         setRoomDirectorySearch={setRoomDirectorySearch}
@@ -2975,7 +2851,7 @@ export default function App() {
             const target = devices.find((d) => d.id === devId)
             if (target?.modelType === "server_rack") {
               setSelectedRackId(devId)
-              setMainViewMode("rackula")
+              openRackulaWindow(devId)
               return
             }
             setSelectedDeviceId(devId)
@@ -3060,7 +2936,7 @@ export default function App() {
         onUnplaceDevice={handleUnplaceDevice}
         onOpenRackula={(rackId) => {
           setSelectedRackId(rackId)
-          setMainViewMode("rackula")
+          openRackulaWindow(rackId)
           setModalOpen(false)
         }}
       />

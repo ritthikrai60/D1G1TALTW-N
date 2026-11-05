@@ -117,16 +117,74 @@
        held constant across panel collapse so the tab strip never moves (#2583). -->
   {#if !viewportStore.isMobile}
     <div class="toolbar-section toolbar-right">
+      <button
+        class="twin-return-btn"
+        type="button"
+        title="กลับสู่อาคาร 3D (Digital Twin)"
+        onclick={() => {
+          if (typeof window !== "undefined") {
+            if (window.opener && !window.opener.closed) {
+              window.close();
+            } else {
+              window.location.href = window.location.search.includes("token=") ? "/admin" : "/";
+            }
+          }
+        }}
+      >
+        🏢 กลับสู่อาคาร 3D
+      </button>
       <StorageStatusChip />
     </div>
   {:else}
     <div class="toolbar-section toolbar-right toolbar-right-mobile">
+      <button
+        class="twin-return-btn twin-return-btn--mobile"
+        type="button"
+        title="กลับสู่อาคาร 3D (Digital Twin)"
+        onclick={() => {
+          if (typeof window !== "undefined") {
+            if (window.opener && !window.opener.closed) {
+              window.close();
+            } else {
+              window.location.href = window.location.search.includes("token=") ? "/admin" : "/";
+            }
+          }
+        }}
+      >
+        🏢 3D
+      </button>
       <StorageStatusChip />
     </div>
   {/if}
 </header>
 
 <style>
+  .twin-return-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--colour-primary, #8be9fd);
+    background: rgba(139, 233, 253, 0.08);
+    border: 1px solid rgba(139, 233, 253, 0.3);
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    margin-right: 8px;
+    transition: all 0.15s ease;
+  }
+  .twin-return-btn:hover {
+    background: rgba(139, 233, 253, 0.18);
+    border-color: rgba(139, 233, 253, 0.6);
+  }
+  .twin-return-btn--mobile {
+    padding: 0 6px;
+    font-size: 10px;
+    margin-right: 4px;
+  }
   .toolbar {
     display: flex;
     align-items: center;

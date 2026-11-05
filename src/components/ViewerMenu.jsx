@@ -114,6 +114,7 @@ export function ViewerMenu({
   menuOpen,
   menuPinned,
   networks,
+  onOpenRackula,
   placedDevices,
   roomDirectorySearch,
   rooms,
@@ -710,7 +711,11 @@ export function ViewerMenu({
                                             if (!menuPinned) setMenuOpen(false)
                                             if (isRack) {
                                               setSelectedRackId(dev.id)
-                                              setMainViewMode("rackula")
+                                              if (onOpenRackula) {
+                                                onOpenRackula(dev.id)
+                                              } else if (setMainViewMode) {
+                                                setMainViewMode(dev.id)
+                                              }
                                             } else {
                                               setSelectedDeviceId(dev.id)
                                               setModalOpen(true)
