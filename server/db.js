@@ -334,6 +334,7 @@ export async function dbLoadAll() {
  * Persist device to PostgreSQL asynchronously
  */
 export async function dbSaveDevice(dev) {
+  if (!isPostgresAvailable) return null;
   try {
     if (!dev || !dev.id) return null;
     const isPlaced = Boolean(dev.isPlaced);
@@ -408,6 +409,7 @@ export async function dbSaveDevice(dev) {
  * Delete device from PostgreSQL
  */
 export async function dbDeleteDevice(id) {
+  if (!isPostgresAvailable) return false;
   try {
     if (!id) return false;
     await prisma.device.delete({ where: { id } }).catch(() => {});
@@ -422,6 +424,7 @@ export async function dbDeleteDevice(id) {
  * Persist room to PostgreSQL asynchronously
  */
 export async function dbSaveRoom(room) {
+  if (!isPostgresAvailable) return null;
   try {
     if (!room || !room.id) return null;
     const data = {
@@ -456,6 +459,7 @@ export async function dbSaveRoom(room) {
  * Delete room from PostgreSQL
  */
 export async function dbDeleteRoom(id) {
+  if (!isPostgresAvailable) return false;
   try {
     if (!id) return false;
     await prisma.room.delete({ where: { id } }).catch(() => {});
@@ -470,6 +474,7 @@ export async function dbDeleteRoom(id) {
  * Persist network to PostgreSQL asynchronously
  */
 export async function dbSaveNetwork(net) {
+  if (!isPostgresAvailable) return null;
   try {
     if (!net || !net.cidr) return null;
     const cidr = String(net.cidr).trim();
@@ -507,6 +512,7 @@ export async function dbSaveNetwork(net) {
  * Delete network from PostgreSQL
  */
 export async function dbDeleteNetwork(id) {
+  if (!isPostgresAvailable) return false;
   try {
     if (!id) return false;
     await prisma.network.delete({ where: { id } }).catch(() => {});
@@ -521,6 +527,7 @@ export async function dbDeleteNetwork(id) {
  * Persist key/value setting to PostgreSQL
  */
 export async function dbSaveSetting(key, value) {
+  if (!isPostgresAvailable) return null;
   try {
     if (!key) return null;
     return await prisma.systemSetting.upsert({

@@ -896,6 +896,12 @@ export function createApiRouterAndWs() {
   router.get('/assets/:layoutId', (req, res) => {
     res.json({ assets: [] });
   });
+  router.put('/assets/:layoutId/:deviceId/:face', (req, res) => {
+    res.json({ ok: true });
+  });
+  router.get('/assets/:layoutId/:deviceId/:face', (req, res) => {
+    res.status(404).json({ error: 'Asset not found' });
+  });
   router.delete('/assets/:layoutId/:deviceId/:face', (req, res) => {
     res.json({ ok: true });
   });

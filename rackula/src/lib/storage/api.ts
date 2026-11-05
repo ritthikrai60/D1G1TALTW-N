@@ -128,10 +128,10 @@ export interface SnapshotItem {
 }
 
 /**
- * Save (PUT) response schema. The server echoes the stored updatedAt.
+ * Save (PUT) response schema. Accepts UUIDs or arbitrary valid layout IDs (e.g. DEV-*).
  */
 const SaveLayoutResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().min(1),
   updatedAt: z.string().datetime(),
 });
 
