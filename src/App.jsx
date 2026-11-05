@@ -221,31 +221,6 @@ export default function App() {
     }
   }, [serverRacks, selectedRackId])
 
-  // Open Rackula 19-Inch Elevation Designer in a dedicated full-screen tab
-  const openRackulaWindow = useCallback((rackId) => {
-    const targetId = rackId || selectedRackId || serverRacks[0]?.id;
-    if (!targetId) {
-      toast({
-        title: "ไม่พบตู้แร็ค",
-        description: "ยังไม่มีตู้แร็คที่จัดวางบนอาคาร 3D",
-        variant: "destructive",
-      });
-      return;
-    }
-    setSelectedRackId(targetId);
-    const params = new URLSearchParams({ layout: targetId });
-    if (isAdminRoute && adminToken) {
-      params.set("token", adminToken);
-    } else {
-      params.set("readonly", "1");
-    }
-    window.open(`/rackula/?${params.toString()}`, "_blank");
-    toast({
-      title: "🚀 เปิดผังตู้แร็คในแท็บแยกแล้ว",
-      description: `เปิด Rackula Designer สำหรับตู้แร็ค [${targetId}] เต็มจอเรียบร้อย`,
-    });
-  }, [selectedRackId, serverRacks, isAdminRoute, adminToken, toast]);
-
   const notifyRackulaOfRemoval = useCallback((removedRackId) => {
     try {
       const iframe = document.getElementById("rackula-designer-iframe");
@@ -296,6 +271,31 @@ export default function App() {
     () => sessionStorage.getItem("dt_admin_token") || ""
   )
   const [adminAuthenticated, setAdminAuthenticated] = useState(false)
+
+  // Open Rackula 19-Inch Elevation Designer in a dedicated full-screen tab
+  const openRackulaWindow = useCallback((rackId) => {
+    const targetId = rackId || selectedRackId || serverRacks[0]?.id;
+    if (!targetId) {
+      toast({
+        title: "ไม่พบตู้แร็ค",
+        description: "ยังไม่มีตู้แร็คที่จัดวางบนอาคาร 3D",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSelectedRackId(targetId);
+    const params = new URLSearchParams({ layout: targetId });
+    if (isAdminRoute && adminToken) {
+      params.set("token", adminToken);
+    } else {
+      params.set("readonly", "1");
+    }
+    window.open(`/rackula/?${params.toString()}`, "_blank");
+    toast({
+      title: "🚀 เปิดผังตู้แร็คในแท็บแยกแล้ว",
+      description: `เปิด Rackula Designer สำหรับตู้แร็ค [${targetId}] เต็มจอเรียบร้อย`,
+    });
+  }, [selectedRackId, serverRacks, isAdminRoute, adminToken, toast]);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false)
   const [passwordInput, setPasswordInput] = useState("")
   const [loginError, setLoginError] = useState("")
