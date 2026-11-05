@@ -1,0 +1,355 @@
+/**
+ * Unified Load Pipeline
+ * Shared logic for loading layouts from API or File
+ */
+import { getLayoutStore } from "$lib/stores/layout.svelte";
+import { getImageStore } from "$lib/stores/images.svelte";
+import { getToastStore } from "$lib/stores/toast.svelte";
+import { getSelectionStore } from "$lib/stores/selection.svelte";
+import { getCanvasStore } from "$lib/stores/canvas.svelte";
+import { clearSession } from "./working-copy";
+import { setServerBaseUpdatedAt } from "./server-base";
+import type { Layout } from "$lib/types";
+import type { ImageStoreMap } from "$lib/types/images";
+import { loadSavedLayout, loadSnapshot, PersistenceError } from "./api";
+import { eagerFetchServerImages } from "./server-load-images";
+import { placementKey } from "$lib/utils/placement-key";
+import { extractFolderArchive } from "$lib/utils/archive";
+import { openFilePicker } from "$lib/utils/file";
+import { layoutDebug } from "$lib/utils/debug";
+import { resolveImageFailureMessages } from "$lib/utils/image-failure-labels";
+import { yieldToMain } from "$lib/utils/yield";
+
+/**
+ * Latest-load-wins guard (#3368). Parsing and validation yield to the event
+ * loop, so a second load can start while the first is still in flight. Each
+ * load takes a ticket; only the newest ticket may hydrate the store, and a
+ * superseded load is discarded without touching the store or showing a toast.
+ */
+let latestLoadTicket = 0;
+
+function beginLoad(): () => boolean {
+  const ticket = ++latestLoadTicket;
+  return () => ticket === latestLoadTicket;
+}
+
+/**
+ * Yield once more before hydration, then report whether this load is still
+ * the latest. Hydration itself runs in one synchronous step, so a partially
+ * loaded layout never reaches the screen.
+ */
+async function readyToHydrate(isLatest: () => boolean): Promise<boolean> {
+  await yieldToMain();
+  return isLatest();
+}
+
+/**
+ * Options for {@link finalizeLayoutLoad}.
+ */
+export interface FinalizeLayoutLoadOptions {
+  /**
+   * Success toast message. Pass `null` to suppress the success toast entirely
+   * (used by the server-reconciliation path, which shows its own
+   * "Loaded ... from server" toast). The partial-image warning toast still
+   * shows when images failed to read, regardless of this option.
+   */
+  successMessage?: string | null;
+  /**
+   * The device-level store keys of the faces that failed to read (one entry per
+   * failed face). When given and resolvable to a placed device, each device gets
+   * its own warning toast naming the device and face; otherwise the generic
+   * "N images couldn't be read" count toast is used.
+   */
+  failedKeys?: string[];
+}
+
+/**
+ * Bumped by every {@link finalizeLayoutLoad}, which replaces the whole image
+ * set. A background image fetch started before a bump is stale, even when the
+ * newly opened layout has the same id (a server copy or snapshot of it).
+ */
+let finalizeGeneration = 0;
+
+/**
+ * Common layout loading process
+ * Updates stores, clears session, and fits view
+ */
+export function finalizeLayoutLoad(
+  layout: Layout,
+  images?: ImageStoreMap,
+  failedImagesCount: number = 0,
+  options: FinalizeLayoutLoadOptions = {},
+) {
+  const { successMessage = "Layout loaded successfully", failedKeys = [] } =
+    options;
+  const layoutStore = getLayoutStore();
+  const imageStore = getImageStore();
+  const toastStore = getToastStore();
+  const selectionStore = getSelectionStore();
+  const canvasStore = getCanvasStore();
+
+  finalizeGeneration++;
+
+  // Always reset images: clear → load bundled base → overlay custom
+  imageStore.clearAllImages();
+  imageStore.loadBundledImages();
+
+  if (images) {
+    for (const [deviceSlug, deviceImages] of images) {
+      if (deviceImages.front) {
+        imageStore.setDeviceImage(deviceSlug, "front", deviceImages.front);
+      }
+      if (deviceImages.rear) {
+        imageStore.setDeviceImage(deviceSlug, "rear", deviceImages.rear);
+      }
+    }
+  }
+
+  // Load layout into store
+  layoutStore.loadLayout(layout);
+  layoutStore.markClean();
+
+  // Reset UI state
+  clearSession();
+  selectionStore.clearSelection();
+
+  // Reset view to center the loaded rack after DOM updates
+  requestAnimationFrame(() => {
+    canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
+  });
+
+  // Show status toast. Prefer a per-device, per-face warning naming the device
+  // and face; fall back to the generic count when no key resolves to a device.
+  const failureMessages = resolveImageFailureMessages(failedKeys, layout);
+  if (failureMessages.length > 0) {
+    for (const failureMessage of failureMessages) {
+      toastStore.showToast(failureMessage, "warning");
+    }
+  } else if (failedImagesCount > 0) {
+    toastStore.showToast(
+      `Layout loaded with ${failedImagesCount} image${failedImagesCount > 1 ? "s" : ""} that couldn't be read`,
+      "warning",
+    );
+  } else if (successMessage !== null) {
+    toastStore.showToast(successMessage, "success");
+  }
+}
+
+/**
+ * Server mode: load a restored working copy's custom faces from the asset API
+ * (#3412). The localStorage working copy holds the layout but no images, so a
+ * reload that keeps it would otherwise show every placed device without its
+ * front/rear override. Fetch failures get the same per-device warning toasts as
+ * a server load.
+ *
+ * Call it after the working copy is in the store, without awaiting it, so a
+ * slow or missing asset never holds up the restore. The user can act while the
+ * fetch is in flight, so the result is dropped when another layout, or another
+ * version of this one, is now open. A face is applied only while its device
+ * still references it and the user has not set one in the meantime, so a face
+ * set or cleared during the fetch is kept as the user left it. Never rejects.
+ */
+export async function loadWorkingCopyServerImages(
+  layout: Layout,
+): Promise<void> {
+  const layoutId = layout.metadata?.id;
+  if (!layoutId) return;
+  const generation = finalizeGeneration;
+
+  try {
+    const { images, failedKeys } = await eagerFetchServerImages(
+      layout,
+      layoutId,
+      new Map(),
+    );
+
+    const current = getLayoutStore().layout;
+    if (
+      generation !== finalizeGeneration ||
+      current.metadata?.id !== layoutId
+    ) {
+      return;
+    }
+
+    const currentDevices = new Map(
+      current.racks
+        .flatMap((rack) => rack.devices)
+        .map((device) => [placementKey(layoutId, device.id), device]),
+    );
+    const imageStore = getImageStore();
+    for (const [key, deviceImages] of images) {
+      const device = currentDevices.get(key);
+      if (
+        deviceImages.front &&
+        device?.front_image &&
+        !imageStore.hasImage(key, "front")
+      ) {
+        imageStore.setDeviceImage(key, "front", deviceImages.front);
+      }
+      if (
+        deviceImages.rear &&
+        device?.rear_image &&
+        !imageStore.hasImage(key, "rear")
+      ) {
+        imageStore.setDeviceImage(key, "rear", deviceImages.rear);
+      }
+    }
+
+    const toastStore = getToastStore();
+    for (const message of resolveImageFailureMessages(failedKeys, layout)) {
+      toastStore.showToast(message, "warning");
+    }
+  } catch (error) {
+    layoutDebug.state("working copy image load failed: %O", error);
+  }
+}
+
+/**
+ * Options for {@link loadFromApi}.
+ */
+export interface LoadFromApiOptions {
+  /**
+   * Override the default "Layout loaded successfully" success toast. Used by
+   * the LoadDialog open-file replace-guard (#2987) to name what became of the
+   * previous layout when it was replaced over unexported changes, instead of
+   * a message that implies nothing happened to it.
+   */
+  successMessage?: string;
+}
+
+/**
+ * Load layout from Persist API
+ */
+export async function loadFromApi(
+  uuid: string,
+  options: LoadFromApiOptions = {},
+) {
+  const toastStore = getToastStore();
+  const isLatest = beginLoad();
+
+  try {
+    const { layout, images, failedImagesCount, failedKeys, updatedAt } =
+      await loadSavedLayout(uuid);
+    if (!(await readyToHydrate(isLatest))) return false;
+    // Record the server's updatedAt as the base for this copy before finalizing,
+    // so the first autosave PUT carries the correct last-known timestamp.
+    setServerBaseUpdatedAt(updatedAt ?? null);
+    finalizeLayoutLoad(layout, images, failedImagesCount, {
+      failedKeys,
+      successMessage: options.successMessage,
+    });
+    return true;
+  } catch (e) {
+    if (!isLatest()) return false;
+    let message: string;
+    if (e instanceof PersistenceError) {
+      if (e.statusCode !== undefined && e.statusCode >= 500) {
+        message = "Server error — please try again later";
+      } else if (e.statusCode === 404) {
+        message = "Layout not found — it may have been deleted";
+      } else {
+        message = e.message;
+      }
+    } else {
+      message = "Failed to open layout — check your connection";
+    }
+    toastStore.showToast(message, "error");
+    return false;
+  }
+}
+
+/**
+ * Restore a pre-overwrite snapshot as the working copy (#2042).
+ *
+ * Restore-as-new-write, not an in-place revert: the snapshot YAML is parsed,
+ * validated, and adapted through the same {@link loadSnapshot} +
+ * {@link finalizeLayoutLoad} pipeline as a normal load, then the server base
+ * updatedAt is cleared so the next save snapshots the diverged server copy
+ * before overwriting it rather than reverting the stored layout in place.
+ */
+export async function restoreFromSnapshot(uuid: string, filename: string) {
+  const toastStore = getToastStore();
+  const isLatest = beginLoad();
+
+  try {
+    const { layout, images, failedImagesCount, failedKeys } =
+      await loadSnapshot(uuid, filename);
+    if (!(await readyToHydrate(isLatest))) return false;
+    // No server base: the next save PUT carries a null last-known timestamp,
+    // so the server snapshots its current copy before this restore overwrites it.
+    setServerBaseUpdatedAt(null);
+    finalizeLayoutLoad(layout, images, failedImagesCount, {
+      successMessage: "Snapshot restored",
+      failedKeys,
+    });
+    return true;
+  } catch (e) {
+    if (!isLatest()) return false;
+    let message: string;
+    if (e instanceof PersistenceError) {
+      if (e.statusCode !== undefined && e.statusCode >= 500) {
+        message = "Server error - please try again later";
+      } else if (e.statusCode === 404) {
+        message = "Snapshot not found - it may have been pruned";
+      } else {
+        message = e.message;
+      }
+    } else {
+      message = "Failed to restore snapshot - check your connection";
+    }
+    toastStore.showToast(message, "error");
+    return false;
+  }
+}
+
+/**
+ * Options for {@link loadFromFile}.
+ */
+export interface LoadFromFileOptions {
+  /**
+   * Override the default "Layout loaded successfully" success toast. Used by
+   * the Ctrl+O replace-guard (#2987) to name what became of the previous
+   * layout when it was replaced over unexported changes, instead of a message
+   * that implies nothing happened to it.
+   */
+  successMessage?: string;
+}
+
+/**
+ * Load layout from local .Rackula.zip file
+ */
+export async function loadFromFile(
+  file?: File,
+  options: LoadFromFileOptions = {},
+) {
+  const toastStore = getToastStore();
+  // The ticket is taken once a file is chosen; an open picker is not a load.
+  let isLatest: () => boolean = () => true;
+
+  try {
+    const selectedFile = file ?? (await openFilePicker());
+    if (!selectedFile) return false;
+    isLatest = beginLoad();
+
+    const { layout, images, failedImages } =
+      await extractFolderArchive(selectedFile);
+    if (!(await readyToHydrate(isLatest))) return false;
+    // A file copy has no server base; autosave will create/re-establish one via
+    // its first PUT (the server treats a null last-known updatedAt as a create).
+    setServerBaseUpdatedAt(null);
+    finalizeLayoutLoad(layout, images, failedImages.length, {
+      successMessage: options.successMessage,
+    });
+    // The loaded file is itself a backup: nothing has changed since export
+    getLayoutStore().markExported();
+    return true;
+  } catch (error) {
+    layoutDebug.state("loadFromFile: failed %O", error);
+    if (!isLatest()) return false;
+    toastStore.showToast(
+      error instanceof Error ? error.message : "Failed to load layout file",
+      "error",
+    );
+    return false;
+  }
+}

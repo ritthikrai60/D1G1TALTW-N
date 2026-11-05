@@ -1,0 +1,40 @@
+{
+  "name": "@rackula/api",
+  "version": "26.10.1",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "dev:worker": "wrangler dev",
+    "start": "bun src/index.ts",
+    "test": "bun test",
+    "test:workers": "vitest run --config vitest.workers.config.ts",
+    "build:worker": "wrangler deploy --dry-run --outdir dist-worker",
+    "typecheck": "tsc --noEmit"
+  },
+  "overrides": {
+    "defu": "^6.1.5",
+    "postcss": "^8.5.18"
+  },
+  "dependencies": {
+    "@node-rs/argon2": "^2.2.2",
+    "better-auth": "~1.7.15",
+    "hono": "^4.13.16",
+    "jose": "^6.2.14",
+    "js-yaml": "^4.3.2",
+    "pino": "^10.4.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "0.23.0",
+    "@types/bun": "^1.4.4",
+    "@types/js-yaml": "^4.0.9",
+    "pino-pretty": "^13.2.0",
+    "typescript": "^7.0.2",
+    "vitest": "4.1.12",
+    "wrangler": "^4.156.0"
+  }
+}

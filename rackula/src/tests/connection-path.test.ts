@@ -1,0 +1,1018 @@
+/**
+ * Tests for the connection path geometry helpers (#1931): pure, DOM-free
+ * functions covering the external-channel cubic bezier routing (spike #262),
+ * channel-side assignment, direction-arrow placement/orientation and gating,
+ * the device-offset formula that mirrors RackDevice.svelte, and the
+ * grouped-mode fallback that skips a connection when either endpoint has no
+ * per-port anchor (#3089).
+ *
+ * Rendered-DOM assertions (hover highlight, on-screen tooltip, frame-rate)
+ * are out of unit scope per the issue's Testing Notes; they are verified
+ * manually / via E2E, not here.
+ *
+ * Connection test objects use src/tests/factories.ts's createTestConnection
+ * (added by #3090's PR #3115).
+ */
+import { describe, it, expect } from "vitest";
+import type { PortDirection } from "$lib/types";
+import { toInternalUnits } from "$lib/utils/position";
+import {
+  createTestConnection,
+  createTestDevice,
+  createTestDeviceType,
+  createTestInterfaceTemplate,
+  createTestPlacedPort,
+  createTestRack,
+} from "./factories";
+import {
+  CHANNEL_LANE_SPACING,
+  CHANNEL_MAX_SPREAD,
+  DEFAULT_GUTTER_OFFSET,
+  HIT_PATH_TRIM,
+  arrowPointsAttr,
+  assignChannelSide,
+  buildCubicBezierPath,
+  buildPortAnchorMap,
+  buildRenderedConnections,
+  channelGutterOffset,
+  computeArrowTriangle,
+  computeChannelControlPoints,
+  computeConnectionGeometry,
+  computeDeviceOffset,
+  cubicBezierPointAt,
+  cubicBezierTangentAt,
+  indexConnectionsByRack,
+  resolveArrowDirection,
+  resolveConnectionPortDirection,
+  resolveConnectionPortSignal,
+  trimCubicBezier,
+  type ResolvedPortAnchor,
+} from "$lib/utils/connection-path";
+import {
+  HIGH_DENSITY_THRESHOLD,
+  getPortChipPosition,
+} from "$lib/utils/port-geometry";
+
+function makeResolvedAnchor(
+  portId: string,
+  x: number,
+  y: number,
+  direction?: PortDirection,
+): ResolvedPortAnchor {
+  return { anchor: { portId, x, y }, direction };
+}
+
+describe("assignChannelSide", () => {
+  const rackBounds = { x: 0, y: 0, width: 220, height: 900 };
+
+  it("routes right when both ports sit in the right-hand port zone (#3463)", () => {
+    expect(
+      assignChannelSide({ x: 180, y: 50 }, { x: 200, y: 300 }, rackBounds),
+    ).toBe("right");
+  });
+
+  it("routes left when both ports sit in the left half of the rack", () => {
+    expect(
+      assignChannelSide({ x: 20, y: 50 }, { x: 40, y: 300 }, rackBounds),
+    ).toBe("left");
+  });
+
+  it("routes toward the rail nearer the two ports when they straddle the centre", () => {
+    expect(
+      assignChannelSide({ x: 30, y: 50 }, { x: 200, y: 300 }, rackBounds),
+    ).toBe("right");
+    expect(
+      assignChannelSide({ x: 20, y: 50 }, { x: 130, y: 300 }, rackBounds),
+    ).toBe("left");
+  });
+});
+
+describe("channelGutterOffset", () => {
+  it("puts each further lane further out from the rack", () => {
+    expect(channelGutterOffset({ index: 0, count: 1 })).toBe(
+      DEFAULT_GUTTER_OFFSET,
+    );
+    expect(channelGutterOffset({ index: 1, count: 2 })).toBeGreaterThan(
+      channelGutterOffset({ index: 0, count: 2 }),
+    );
+  });
+
+  it("keeps 24 parallel cables on one span inside the spread cap, each on its own offset", () => {
+    const count = 24;
+    const offsets = Array.from({ length: count }, (_, index) =>
+      channelGutterOffset({ index, count }),
+    );
+    for (const offset of offsets) {
+      expect(offset).toBeGreaterThanOrEqual(DEFAULT_GUTTER_OFFSET);
+      expect(offset).toBeLessThanOrEqual(
+        DEFAULT_GUTTER_OFFSET + CHANNEL_MAX_SPREAD,
+      );
+    }
+    expect(new Set(offsets).size).toBe(count);
+  });
+
+  it("keeps full lane spacing while a group fits inside the cap", () => {
+    expect(
+      channelGutterOffset({ index: 1, count: 2 }) -
+        channelGutterOffset({ index: 0, count: 2 }),
+    ).toBe(CHANNEL_LANE_SPACING);
+  });
+});
+
+describe("computeChannelControlPoints", () => {
+  const rackBounds = { x: 0, y: 0, width: 200, height: 900 };
+  const source = { x: 10, y: 50 };
+  const target = { x: 190, y: 300 };
+
+  it("routes the right-side gutter outside the rack's right edge", () => {
+    const control = computeChannelControlPoints(
+      source,
+      target,
+      rackBounds,
+      "right",
+      30,
+    );
+    expect(control).toEqual({ c1: { x: 230, y: 50 }, c2: { x: 230, y: 300 } });
+  });
+
+  it("routes the left-side gutter outside the rack's left edge", () => {
+    const control = computeChannelControlPoints(
+      source,
+      target,
+      rackBounds,
+      "left",
+      30,
+    );
+    expect(control).toEqual({ c1: { x: -30, y: 50 }, c2: { x: -30, y: 300 } });
+  });
+
+  it("defaults the gutter offset when none is supplied", () => {
+    const control = computeChannelControlPoints(
+      source,
+      target,
+      rackBounds,
+      "right",
+    );
+    expect(control.c1.x).toBe(
+      rackBounds.x + rackBounds.width + DEFAULT_GUTTER_OFFSET,
+    );
+  });
+});
+
+describe("buildCubicBezierPath", () => {
+  it("formats an SVG cubic bezier path from source through both control points to target", () => {
+    const path = buildCubicBezierPath(
+      { x: 10, y: 50 },
+      { c1: { x: 230, y: 50 }, c2: { x: 230, y: 300 } },
+      { x: 190, y: 300 },
+    );
+    expect(path).toBe("M 10,50 C 230,50 230,300 190,300");
+  });
+});
+
+describe("cubicBezierPointAt", () => {
+  // Evenly-spaced, collinear control points reduce the cubic bezier to a
+  // straight line: P1 = P0 + d, P2 = P0 + 2d, P3 = P0 + 3d. Lets every
+  // t produce an exactly-checkable point without a curve-fitting library.
+  const source = { x: 0, y: 0 };
+  const control = { c1: { x: 10, y: 20 }, c2: { x: 20, y: 40 } };
+  const target = { x: 30, y: 60 };
+
+  it("returns the source point at t=0", () => {
+    expect(cubicBezierPointAt(source, control, target, 0)).toEqual(source);
+  });
+
+  it("returns the target point at t=1", () => {
+    expect(cubicBezierPointAt(source, control, target, 1)).toEqual(target);
+  });
+
+  it("returns the straight-line midpoint at t=0.5 for evenly-spaced collinear controls", () => {
+    expect(cubicBezierPointAt(source, control, target, 0.5)).toEqual({
+      x: 15,
+      y: 30,
+    });
+  });
+});
+
+describe("cubicBezierTangentAt", () => {
+  it("is constant and equal to (target - source) for evenly-spaced collinear controls", () => {
+    const source = { x: 0, y: 0 };
+    const control = { c1: { x: 10, y: 20 }, c2: { x: 20, y: 40 } };
+    const target = { x: 30, y: 60 };
+
+    for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+      expect(cubicBezierTangentAt(source, control, target, t)).toEqual({
+        x: 30,
+        y: 60,
+      });
+    }
+  });
+});
+
+describe("trimCubicBezier", () => {
+  // A genuinely curved (non-collinear) fixture, so the subdivision test
+  // below is not trivially satisfied by a degenerate straight-line case.
+  const source = { x: 0, y: 0 };
+  const control = { c1: { x: 0, y: 100 }, c2: { x: 100, y: 100 } };
+  const target = { x: 100, y: 0 };
+
+  it("leaves the curve unchanged when trimming the full [0, 1] range", () => {
+    const trimmed = trimCubicBezier(source, control, target, 0, 1);
+    expect(trimmed).toEqual({ source, control, target });
+  });
+
+  it("reproduces the exact original curve over the trimmed sub-range (De Casteljau exactness)", () => {
+    const t0 = 0.15;
+    const t1 = 0.85;
+    const trimmed = trimCubicBezier(source, control, target, t0, t1);
+
+    for (const s of [0, 0.25, 0.5, 0.75, 1]) {
+      const originalT = t0 + s * (t1 - t0);
+      const expected = cubicBezierPointAt(source, control, target, originalT);
+      const actual = cubicBezierPointAt(
+        trimmed.source,
+        trimmed.control,
+        trimmed.target,
+        s,
+      );
+      expect(actual.x).toBeCloseTo(expected.x, 6);
+      expect(actual.y).toBeCloseTo(expected.y, 6);
+    }
+  });
+
+  it("collapses to a single point when t1 does not exceed t0", () => {
+    const point = cubicBezierPointAt(source, control, target, 0.4);
+    const trimmed = trimCubicBezier(source, control, target, 0.4, 0.4);
+    expect(trimmed).toEqual({
+      source: point,
+      control: { c1: point, c2: point },
+      target: point,
+    });
+  });
+});
+
+describe("resolveArrowDirection", () => {
+  it("points a-to-b when a is output and b is input", () => {
+    expect(resolveArrowDirection("output", "input")).toBe("a-to-b");
+  });
+
+  it("points b-to-a when a is input and b is output", () => {
+    expect(resolveArrowDirection("input", "output")).toBe("b-to-a");
+  });
+
+  it("renders no arrow when either side is bidirectional", () => {
+    expect(resolveArrowDirection("bidirectional", "input")).toBeNull();
+    expect(resolveArrowDirection("output", "bidirectional")).toBeNull();
+  });
+
+  it("renders no arrow when either side is unspecified", () => {
+    expect(resolveArrowDirection(undefined, "input")).toBeNull();
+    expect(resolveArrowDirection("output", undefined)).toBeNull();
+    expect(resolveArrowDirection(undefined, undefined)).toBeNull();
+  });
+
+  it("renders no arrow when both sides share the same role", () => {
+    expect(resolveArrowDirection("output", "output")).toBeNull();
+    expect(resolveArrowDirection("input", "input")).toBeNull();
+  });
+});
+
+describe("computeArrowTriangle", () => {
+  const source = { x: 0, y: 0 };
+  const control = { c1: { x: 10, y: 20 }, c2: { x: 20, y: 40 } };
+  const target = { x: 30, y: 60 };
+
+  it("returns null when direction is null (no arrow to draw)", () => {
+    expect(computeArrowTriangle(source, control, target, null)).toBeNull();
+  });
+
+  it("returns null for a degenerate (zero-length) tangent", () => {
+    const point = { x: 5, y: 5 };
+    const flatControl = { c1: point, c2: point };
+    expect(
+      computeArrowTriangle(point, flatControl, point, "a-to-b"),
+    ).toBeNull();
+  });
+
+  it("centres a triangle on the midpoint, tip pointing toward the target for a-to-b", () => {
+    const triangle = computeArrowTriangle(source, control, target, "a-to-b");
+    expect(triangle).not.toBeNull();
+    // Hand-computed: midpoint (15,30), unit tangent (1/sqrt5, 2/sqrt5),
+    // half-length 3.5 (ARROW_LENGTH/2), half-width 2.5 (ARROW_WIDTH/2).
+    expect(triangle!.tip.x).toBeCloseTo(16.56525, 4);
+    expect(triangle!.tip.y).toBeCloseTo(33.1305, 4);
+    expect(triangle!.base1.x).toBeCloseTo(11.19868, 4);
+    expect(triangle!.base1.y).toBeCloseTo(27.98754, 4);
+    expect(triangle!.base2.x).toBeCloseTo(15.67082, 4);
+    expect(triangle!.base2.y).toBeCloseTo(25.75147, 4);
+  });
+
+  it("flips the tip toward the source for b-to-a (opposite orientation of a-to-b)", () => {
+    const aToB = computeArrowTriangle(source, control, target, "a-to-b")!;
+    const bToA = computeArrowTriangle(source, control, target, "b-to-a")!;
+    const midpoint = cubicBezierPointAt(source, control, target, 0.5);
+
+    // a-to-b's tip sits past the midpoint toward the target (larger x/y);
+    // b-to-a's tip sits past the midpoint toward the source (smaller x/y).
+    expect(aToB.tip.x).toBeGreaterThan(midpoint.x);
+    expect(bToA.tip.x).toBeLessThan(midpoint.x);
+    expect(aToB.tip.y).toBeGreaterThan(midpoint.y);
+    expect(bToA.tip.y).toBeLessThan(midpoint.y);
+  });
+
+  it("uses the supplied arrow size instead of the module defaults", () => {
+    const small = computeArrowTriangle(source, control, target, "a-to-b", {
+      length: 2,
+      width: 2,
+    });
+    const dflt = computeArrowTriangle(source, control, target, "a-to-b");
+    expect(small).not.toBeNull();
+    expect(dflt).not.toBeNull();
+    const midpoint = cubicBezierPointAt(source, control, target, 0.5);
+    const smallDist = Math.hypot(
+      small!.tip.x - midpoint.x,
+      small!.tip.y - midpoint.y,
+    );
+    const dfltDist = Math.hypot(
+      dflt!.tip.x - midpoint.x,
+      dflt!.tip.y - midpoint.y,
+    );
+    expect(smallDist).toBeLessThan(dfltDist);
+  });
+});
+
+describe("arrowPointsAttr", () => {
+  it("formats a triangle as an SVG polygon points attribute", () => {
+    const points = arrowPointsAttr({
+      tip: { x: 1, y: 2 },
+      base1: { x: 3, y: 4 },
+      base2: { x: 5, y: 6 },
+    });
+    expect(points).toBe("1,2 3,4 5,6");
+  });
+});
+
+describe("computeConnectionGeometry", () => {
+  const rackBounds = { x: 0, y: 0, width: 200, height: 900 };
+  const source = { x: 10, y: 50 };
+  const target = { x: 190, y: 300 };
+
+  it("routes through the right gutter on lane 0 and produces no arrow with no direction", () => {
+    const geometry = computeConnectionGeometry(
+      source,
+      target,
+      rackBounds,
+      { index: 0, count: 1 },
+      null,
+    );
+    expect(geometry.side).toBe("right");
+    expect(geometry.arrow).toBeNull();
+    expect(geometry.path.startsWith("M 10,50 C 230,50 230,300")).toBe(true);
+  });
+
+  it("routes right-zone ports through the right gutter on every lane, each lane further out (#3463)", () => {
+    const rightSource = { x: 180, y: 50 };
+    const rightTarget = { x: 190, y: 300 };
+    const first = computeConnectionGeometry(
+      rightSource,
+      rightTarget,
+      rackBounds,
+      { index: 0, count: 1 },
+      null,
+    );
+    const second = computeConnectionGeometry(
+      rightSource,
+      rightTarget,
+      rackBounds,
+      { index: 1, count: 2 },
+      "a-to-b",
+    );
+    expect(first.side).toBe("right");
+    expect(second.side).toBe("right");
+    expect(second.midpoint.x).toBeGreaterThan(first.midpoint.x);
+    expect(second.arrow).not.toBeNull();
+  });
+
+  it("computes the midpoint from the same control points used in the path", () => {
+    const geometry = computeConnectionGeometry(
+      source,
+      target,
+      rackBounds,
+      { index: 0, count: 1 },
+      null,
+    );
+    const control = computeChannelControlPoints(
+      source,
+      target,
+      rackBounds,
+      "right",
+    );
+    expect(geometry.midpoint).toEqual(
+      cubicBezierPointAt(source, control, target, 0.5),
+    );
+  });
+
+  it("trims the hit-stroke path away from both endpoints, unlike the full visible path", () => {
+    const geometry = computeConnectionGeometry(
+      source,
+      target,
+      rackBounds,
+      { index: 0, count: 1 },
+      null,
+    );
+    const control = computeChannelControlPoints(
+      source,
+      target,
+      rackBounds,
+      "right",
+    );
+    const trimmedStart = cubicBezierPointAt(
+      source,
+      control,
+      target,
+      HIT_PATH_TRIM,
+    );
+
+    // The full path still starts at the true source (the port anchor).
+    expect(geometry.path.startsWith(`M ${source.x},${source.y}`)).toBe(true);
+
+    expect(geometry.hitPath).not.toBe(geometry.path);
+    const hitStartMatch = geometry.hitPath.match(/^M ([\d.-]+),([\d.-]+)/);
+    expect(hitStartMatch).not.toBeNull();
+    expect(Number(hitStartMatch![1])).toBeCloseTo(trimmedStart.x, 6);
+    expect(Number(hitStartMatch![2])).toBeCloseTo(trimmedStart.y, 6);
+  });
+});
+
+describe("resolveConnectionPortDirection", () => {
+  it("prefers an explicit PlacedPort.direction override over everything else", () => {
+    const port = createTestPlacedPort({ direction: "output" });
+    const iface = createTestInterfaceTemplate({ direction: "input" });
+    expect(resolveConnectionPortDirection(port, iface)).toBe("output");
+  });
+
+  it("falls back to the InterfaceTemplate default when the port has no override", () => {
+    const port = createTestPlacedPort();
+    const iface = createTestInterfaceTemplate({ direction: "input" });
+    expect(resolveConnectionPortDirection(port, iface)).toBe("input");
+  });
+
+  it("falls back to inferDirection() using the interface type when neither is explicit", () => {
+    const port = createTestPlacedPort({ type: "1000base-t" });
+    const iface = createTestInterfaceTemplate({ type: "1000base-t" });
+    expect(resolveConnectionPortDirection(port, iface)).toBe("bidirectional");
+  });
+
+  it("infers input for console/management interfaces with no explicit direction", () => {
+    const port = createTestPlacedPort({ type: "console" });
+    const iface = createTestInterfaceTemplate({ type: "console" });
+    expect(resolveConnectionPortDirection(port, iface)).toBe("input");
+  });
+
+  it("has no inferred direction for an AV type with no explicit direction", () => {
+    const port = createTestPlacedPort({ type: "hdmi" });
+    const iface = createTestInterfaceTemplate({ type: "hdmi" });
+    expect(resolveConnectionPortDirection(port, iface)).toBeUndefined();
+  });
+
+  it("falls back to the PlacedPort's cached type when no InterfaceTemplate is available", () => {
+    const port = createTestPlacedPort({ type: "console" });
+    expect(resolveConnectionPortDirection(port, undefined)).toBe("input");
+  });
+
+  it("returns undefined when neither a port nor an interface is available", () => {
+    expect(
+      resolveConnectionPortDirection(undefined, undefined),
+    ).toBeUndefined();
+  });
+});
+
+describe("resolveConnectionPortSignal", () => {
+  it("prefers an explicit PlacedPort.signal_type override, marked explicit", () => {
+    const port = createTestPlacedPort({
+      type: "xlr-3",
+      signal_type: "analog-audio-mic",
+    });
+    const iface = createTestInterfaceTemplate({
+      type: "xlr-3",
+      signal_type: "digital-audio-aes3",
+    });
+    expect(resolveConnectionPortSignal(port, iface)).toEqual({
+      signal: "analog-audio-mic",
+      explicit: true,
+    });
+  });
+
+  it("falls back to the InterfaceTemplate signal_type, marked explicit", () => {
+    const port = createTestPlacedPort({ type: "xlr-3" });
+    const iface = createTestInterfaceTemplate({
+      type: "xlr-3",
+      signal_type: "digital-audio-aes3",
+    });
+    expect(resolveConnectionPortSignal(port, iface)).toEqual({
+      signal: "digital-audio-aes3",
+      explicit: true,
+    });
+  });
+
+  it("infers from type and the resolved direction when neither is explicit, marked inferred", () => {
+    // The PlacedPort direction override (input) wins over the template's
+    // output, so XLR infers mic level, not line level.
+    const port = createTestPlacedPort({ type: "xlr-3", direction: "input" });
+    const iface = createTestInterfaceTemplate({
+      type: "xlr-3",
+      direction: "output",
+    });
+    expect(resolveConnectionPortSignal(port, iface)).toEqual({
+      signal: "analog-audio-mic",
+      explicit: false,
+    });
+  });
+
+  it("returns undefined when no signal is set or inferable", () => {
+    const port = createTestPlacedPort({ type: "1000base-t" });
+    const iface = createTestInterfaceTemplate({ type: "1000base-t" });
+    expect(resolveConnectionPortSignal(port, iface)).toBeUndefined();
+  });
+});
+
+describe("computeDeviceOffset", () => {
+  it("matches RackDevice.svelte's transform formula for a mid-rack device", () => {
+    const offset = computeDeviceOffset({
+      position: toInternalUnits(10),
+      deviceUHeight: 2,
+      rackHeight: 42,
+      uHeight: 22,
+      railWidth: 17,
+      rackPadding: 18,
+    });
+    // yPosition = (42 - 10 - 2 + 1) * 22 = 682; y = rackPadding + railWidth + yPosition
+    expect(offset).toEqual({ x: 17, y: 717 });
+  });
+
+  it("matches the formula for a device at the bottom of a short rack", () => {
+    const offset = computeDeviceOffset({
+      position: toInternalUnits(1),
+      deviceUHeight: 1,
+      rackHeight: 10,
+      uHeight: 22,
+      railWidth: 17,
+      rackPadding: 18,
+    });
+    // yPosition = (10 - 1 - 1 + 1) * 22 = 198; y = 18 + 17 + 198
+    expect(offset).toEqual({ x: 17, y: 233 });
+  });
+});
+
+describe("buildPortAnchorMap", () => {
+  const rackDims = {
+    rackHeight: 42,
+    rackWidth: 220,
+    interiorWidth: 186,
+    uHeight: 22,
+    rackPadding: 18,
+    railWidth: 17,
+  };
+
+  it("anchors every individually-rendered port, keyed by PlacedPort.id", () => {
+    const deviceType = {
+      ...createTestDeviceType({ slug: "switch-1", u_height: 1 }),
+      interfaces: [
+        createTestInterfaceTemplate({ name: "eth0", direction: "output" }),
+        createTestInterfaceTemplate({ name: "eth1", direction: "input" }),
+      ],
+    };
+    const device = createTestDevice({
+      device_type: "switch-1",
+      position: 10,
+      ports: [
+        createTestPlacedPort({ id: "port-eth0", template_index: 0 }),
+        createTestPlacedPort({ id: "port-eth1", template_index: 1 }),
+      ],
+    });
+    const bySlug = new Map([[deviceType.slug, deviceType]]);
+
+    const anchors = buildPortAnchorMap([device], bySlug, "front", rackDims);
+
+    expect(anchors.size).toBe(2);
+    expect(anchors.get("port-eth0")?.direction).toBe("output");
+    expect(anchors.get("port-eth1")?.direction).toBe("input");
+  });
+
+  it("anchors a high-density device's ports at its chip (#3462)", () => {
+    const interfaces = Array.from(
+      { length: HIGH_DENSITY_THRESHOLD + 1 },
+      (_, i) => createTestInterfaceTemplate({ name: `eth${i}` }),
+    );
+    const ports = interfaces.map((_, i) =>
+      createTestPlacedPort({ id: `port-${i}`, template_index: i }),
+    );
+    const deviceType = {
+      ...createTestDeviceType({ slug: "patch-panel", u_height: 1 }),
+      interfaces,
+    };
+    const device = createTestDevice({ device_type: "patch-panel", ports });
+    const bySlug = new Map([[deviceType.slug, deviceType]]);
+
+    const anchors = buildPortAnchorMap([device], bySlug, "front", rackDims);
+
+    expect([...anchors.keys()]).toEqual(ports.map((port) => port.id));
+    const points = [...anchors.values()].map(
+      ({ anchor }) => `${anchor.x},${anchor.y}`,
+    );
+    expect(new Set(points).size).toBe(1);
+  });
+
+  it("anchors every port at one shared point on a 10-inch rack, where the strip collapses to the chip (#3451)", () => {
+    const interfaces = Array.from({ length: 4 }, (_, i) =>
+      createTestInterfaceTemplate({ name: `eth${i}` }),
+    );
+    const ports = interfaces.map((_, i) =>
+      createTestPlacedPort({ id: `port-${i}`, template_index: i }),
+    );
+    const deviceType = {
+      ...createTestDeviceType({ slug: "mini-switch", u_height: 1 }),
+      interfaces,
+    };
+    const device = createTestDevice({ device_type: "mini-switch", ports });
+    const bySlug = new Map([[deviceType.slug, deviceType]]);
+    const narrowDims = { ...rackDims, rackWidth: 116, interiorWidth: 82 };
+
+    const anchors = buildPortAnchorMap([device], bySlug, "front", narrowDims);
+
+    // Each port keeps an anchor, so its connections keep drawing...
+    expect([...anchors.keys()]).toEqual(ports.map((port) => port.id));
+    // ...and they all meet at the chip's marker.
+    const points = [...anchors.values()].map(
+      ({ anchor }) => `${anchor.x},${anchor.y}`,
+    );
+    expect(new Set(points).size).toBe(1);
+  });
+
+  it("ends a collapsed chip's cables at the chip's right edge, clear of the count (#3463)", () => {
+    const interfaces = Array.from({ length: 4 }, (_, i) =>
+      createTestInterfaceTemplate({ name: `eth${i}` }),
+    );
+    const ports = interfaces.map((_, i) =>
+      createTestPlacedPort({ id: `port-${i}`, template_index: i }),
+    );
+    const deviceType = {
+      ...createTestDeviceType({ slug: "mini-switch", u_height: 1 }),
+      interfaces,
+    };
+    const device = createTestDevice({ device_type: "mini-switch", ports });
+    const bySlug = new Map([[deviceType.slug, deviceType]]);
+    const narrowDims = { ...rackDims, rackWidth: 116, interiorWidth: 82 };
+    const chip = getPortChipPosition({
+      interfaces,
+      ports,
+      rackView: "front",
+      deviceWidth: narrowDims.interiorWidth,
+      deviceHeight: narrowDims.uHeight,
+      offset: computeDeviceOffset({
+        position: device.position,
+        deviceUHeight: 1,
+        rackHeight: narrowDims.rackHeight,
+        uHeight: narrowDims.uHeight,
+        railWidth: narrowDims.railWidth,
+        rackPadding: narrowDims.rackPadding,
+      }),
+    });
+    expect(chip).toBeDefined();
+
+    const anchors = buildPortAnchorMap([device], bySlug, "front", narrowDims);
+
+    for (const { anchor } of anchors.values()) {
+      expect(anchor).toMatchObject({ x: chip!.x + chip!.width, y: chip!.cy });
+    }
+  });
+
+  it("skips a device whose type is missing from the library without throwing", () => {
+    const device = createTestDevice({ device_type: "unknown-slug" });
+    expect(() =>
+      buildPortAnchorMap([device], new Map(), "front", rackDims),
+    ).not.toThrow();
+    expect(
+      buildPortAnchorMap([device], new Map(), "front", rackDims).size,
+    ).toBe(0);
+  });
+
+  it("skips a device type with no interfaces", () => {
+    const deviceType = createTestDeviceType({ slug: "blank-1u", u_height: 1 });
+    const device = createTestDevice({ device_type: "blank-1u" });
+    const bySlug = new Map([[deviceType.slug, deviceType]]);
+    expect(buildPortAnchorMap([device], bySlug, "front", rackDims).size).toBe(
+      0,
+    );
+  });
+});
+
+describe("buildRenderedConnections", () => {
+  const rackBounds = { x: 0, y: 0, width: 220, height: 900 };
+
+  it("resolves a connection whose both ports are anchored, with a gated arrow", () => {
+    const portAnchors = new Map<string, ResolvedPortAnchor>([
+      ["port-a", makeResolvedAnchor("port-a", 10, 50, "output")],
+      ["port-b", makeResolvedAnchor("port-b", 190, 300, "input")],
+    ]);
+    const connection = createTestConnection();
+
+    const rendered = buildRenderedConnections(
+      [connection],
+      portAnchors,
+      rackBounds,
+    );
+
+    expect(rendered.map((r) => r.connection.id)).toEqual([connection.id]);
+    expect(rendered[0].connection).toBe(connection);
+    expect(rendered[0].geometry.arrow).not.toBeNull();
+  });
+
+  it("skips a connection when either endpoint has no anchor (grouped-mode fallback)", () => {
+    const portAnchors = new Map<string, ResolvedPortAnchor>([
+      ["port-a", makeResolvedAnchor("port-a", 10, 50, "output")],
+      // port-b intentionally missing: high-density device, wrong face, or
+      // legacy data with no PlacedPort match.
+    ]);
+    const connection = createTestConnection();
+
+    const rendered = buildRenderedConnections(
+      [connection],
+      portAnchors,
+      rackBounds,
+    );
+
+    expect(rendered).toEqual([]);
+  });
+
+  it("separates many cables between the same pair of devices by lane, all on the right (#3463)", () => {
+    // Two collapsed chips: every port on a device shares one anchor, so only
+    // the lane can tell these cables apart.
+    const portAnchors = new Map<string, ResolvedPortAnchor>();
+    const parallelCount = 6;
+    const connections = Array.from({ length: parallelCount }, (_, i) => {
+      portAnchors.set(`a${i}`, makeResolvedAnchor(`a${i}`, 200, 50));
+      portAnchors.set(`b${i}`, makeResolvedAnchor(`b${i}`, 200, 300));
+      return createTestConnection({
+        id: `conn-${i}`,
+        a_port_id: `a${i}`,
+        b_port_id: `b${i}`,
+      });
+    });
+
+    const rendered = buildRenderedConnections(
+      connections,
+      portAnchors,
+      rackBounds,
+    );
+
+    expect(rendered.every((r) => r.geometry.side === "right")).toBe(true);
+    const peaks = rendered.map((r) => r.geometry.midpoint.x);
+    expect(new Set(peaks).size).toBe(parallelCount);
+  });
+
+  it("keeps a cable with a span of its own on the innermost lane", () => {
+    const portAnchors = new Map<string, ResolvedPortAnchor>([
+      ["port-a", makeResolvedAnchor("port-a", 190, 50)],
+      ["port-b", makeResolvedAnchor("port-b", 190, 300)],
+      ["port-c", makeResolvedAnchor("port-c", 190, 100)],
+      ["port-d", makeResolvedAnchor("port-d", 190, 400)],
+    ]);
+    const connections = [
+      createTestConnection({
+        id: "c1",
+        a_port_id: "port-a",
+        b_port_id: "port-b",
+      }),
+      createTestConnection({
+        id: "c2",
+        a_port_id: "port-c",
+        b_port_id: "port-d",
+      }),
+    ];
+
+    const rendered = buildRenderedConnections(
+      connections,
+      portAnchors,
+      rackBounds,
+    );
+
+    const laneZero = computeConnectionGeometry(
+      { x: 190, y: 100 },
+      { x: 190, y: 400 },
+      rackBounds,
+      { index: 0, count: 1 },
+      null,
+    );
+    expect(rendered[1].geometry.path).toBe(laneZero.path);
+  });
+
+  it("numbers lanes separately in each gutter", () => {
+    const portAnchors = new Map<string, ResolvedPortAnchor>([
+      ["right-a", makeResolvedAnchor("right-a", 190, 50)],
+      ["right-b", makeResolvedAnchor("right-b", 190, 300)],
+      ["left-a", makeResolvedAnchor("left-a", 20, 50)],
+      ["left-b", makeResolvedAnchor("left-b", 20, 300)],
+    ]);
+    const connections = [
+      createTestConnection({
+        id: "r",
+        a_port_id: "right-a",
+        b_port_id: "right-b",
+      }),
+      createTestConnection({
+        id: "l",
+        a_port_id: "left-a",
+        b_port_id: "left-b",
+      }),
+    ];
+
+    const rendered = buildRenderedConnections(
+      connections,
+      portAnchors,
+      rackBounds,
+    );
+
+    const leftLaneZero = computeConnectionGeometry(
+      { x: 20, y: 50 },
+      { x: 20, y: 300 },
+      rackBounds,
+      { index: 0, count: 1 },
+      null,
+    );
+    expect(rendered[1].geometry.side).toBe("left");
+    expect(rendered[1].geometry.path).toBe(leftLaneZero.path);
+  });
+
+  it("only advances the channel lane for connections that actually render", () => {
+    const portAnchors = new Map<string, ResolvedPortAnchor>([
+      ["port-a", makeResolvedAnchor("port-a", 190, 50)],
+      ["port-b", makeResolvedAnchor("port-b", 190, 300)],
+      ["port-c", makeResolvedAnchor("port-c", 190, 50)],
+      ["port-d", makeResolvedAnchor("port-d", 190, 300)],
+    ]);
+    const connections = [
+      createTestConnection({
+        id: "conn-1",
+        a_port_id: "port-a",
+        b_port_id: "port-b",
+      }),
+      // conn-2 references a port with no anchor and is skipped; it must not
+      // consume a channel-side slot.
+      createTestConnection({
+        id: "conn-2",
+        a_port_id: "port-a",
+        b_port_id: "missing",
+      }),
+      createTestConnection({
+        id: "conn-3",
+        a_port_id: "port-c",
+        b_port_id: "port-d",
+      }),
+    ];
+
+    const rendered = buildRenderedConnections(
+      connections,
+      portAnchors,
+      rackBounds,
+    );
+
+    expect(rendered.map((r) => r.connection.id)).toEqual(["conn-1", "conn-3"]);
+    const laneOne = computeConnectionGeometry(
+      { x: 190, y: 50 },
+      { x: 190, y: 300 },
+      rackBounds,
+      { index: 1, count: 2 },
+      null,
+    );
+    expect(rendered[1].geometry.path).toBe(laneOne.path);
+  });
+});
+
+describe("indexConnectionsByRack", () => {
+  function rackWithPorts(id: string, portIds: string[]) {
+    return createTestRack({
+      id,
+      devices: [
+        createTestDevice({
+          id: `${id}-dev`,
+          ports: portIds.map((pid) => createTestPlacedPort({ id: pid })),
+        }),
+      ],
+    });
+  }
+
+  const rackA = rackWithPorts("rack-a", ["a1", "a2", "a3"]);
+  const rackB = rackWithPorts("rack-b", ["b1", "b2"]);
+  const inA1 = createTestConnection({
+    id: "in-a-1",
+    a_port_id: "a1",
+    b_port_id: "a2",
+  });
+  const inB = createTestConnection({
+    id: "in-b",
+    a_port_id: "b1",
+    b_port_id: "b2",
+  });
+  const cross = createTestConnection({
+    id: "cross",
+    a_port_id: "a3",
+    b_port_id: "b1",
+  });
+  const inA2 = createTestConnection({
+    id: "in-a-2",
+    a_port_id: "a2",
+    b_port_id: "a3",
+  });
+  const dangling = createTestConnection({
+    id: "dangling",
+    a_port_id: "gone",
+    b_port_id: "also-gone",
+  });
+  const connections = [inA1, inB, cross, inA2, dangling];
+
+  it("buckets each connection under the racks its ports live in, in layout order", () => {
+    const index = indexConnectionsByRack([rackA, rackB], connections);
+
+    expect(index.get("rack-a")?.map((c) => c.id)).toEqual([
+      "in-a-1",
+      "cross",
+      "in-a-2",
+    ]);
+    expect(index.get("rack-b")?.map((c) => c.id)).toEqual(["in-b", "cross"]);
+  });
+
+  it("puts a connection with no resolvable port in no bucket", () => {
+    const index = indexConnectionsByRack([rackA, rackB], connections);
+
+    const bucketed = [...index.values()].flat().map((c) => c.id);
+    expect(bucketed).not.toContain("dangling");
+  });
+
+  it("indexes ports on container children, which live in rack.devices too", () => {
+    const rack = createTestRack({
+      id: "rack-c",
+      devices: [
+        createTestDevice({ id: "parent" }),
+        createTestDevice({
+          id: "child",
+          container_id: "parent",
+          ports: [createTestPlacedPort({ id: "c1" })],
+        }),
+      ],
+    });
+    const conn = createTestConnection({ a_port_id: "c1", b_port_id: "x" });
+
+    expect(indexConnectionsByRack([rack], [conn]).get("rack-c")).toEqual([
+      conn,
+    ]);
+  });
+
+  it("reuses an unchanged rack's bucket array so its face does not recompute", () => {
+    const before = indexConnectionsByRack([rackA, rackB], connections);
+
+    // Editing a device in rack A replaces rack A but leaves rack B and
+    // every connection object untouched.
+    const editedA = {
+      ...rackA,
+      devices: [{ ...rackA.devices[0], name: "renamed" }],
+    };
+    const after = indexConnectionsByRack([editedA, rackB], connections, before);
+
+    expect(after.get("rack-b")).toBe(before.get("rack-b"));
+    expect(after.get("rack-a")).toBe(before.get("rack-a"));
+  });
+
+  it("returns a new bucket only for the racks whose connections changed", () => {
+    const before = indexConnectionsByRack([rackA, rackB], connections);
+
+    const updatedInB = { ...inB, label: "uplink" };
+    const after = indexConnectionsByRack(
+      [rackA, rackB],
+      [inA1, updatedInB, cross, inA2],
+      before,
+    );
+
+    expect(after.get("rack-a")).toBe(before.get("rack-a"));
+    expect(after.get("rack-b")).not.toBe(before.get("rack-b"));
+    expect(after.get("rack-b")?.map((c) => c.label)).toEqual([
+      "uplink",
+      undefined,
+    ]);
+  });
+
+  it("routes a face's bucket exactly as it routes the full connection list", () => {
+    const portAnchors = new Map<string, ResolvedPortAnchor>([
+      ["a1", makeResolvedAnchor("a1", 10, 50)],
+      ["a2", makeResolvedAnchor("a2", 190, 300)],
+      ["a3", makeResolvedAnchor("a3", 10, 500)],
+    ]);
+    const rackBounds = { x: 0, y: 0, width: 220, height: 900 };
+    const bucket =
+      indexConnectionsByRack([rackA, rackB], connections).get("rack-a") ?? [];
+
+    expect(buildRenderedConnections(bucket, portAnchors, rackBounds)).toEqual(
+      buildRenderedConnections(connections, portAnchors, rackBounds),
+    );
+  });
+});

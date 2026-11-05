@@ -1,0 +1,12 @@
+export { M3Button } from './M3Button.jsx';
+export { M3IconButton } from './M3IconButton.jsx';
+export { M3SegmentedButtonSet, M3SegmentedButton } from './M3SegmentedButton.jsx';
+export { M3Badge } from './M3Badge.jsx';
+export { M3Divider } from './M3Divider.jsx';
+export { M3Fab } from './M3Fab.jsx';
+export { M3Dialog } from './M3Dialog.jsx';
+export { M3Tabs, M3PrimaryTab } from './M3Tabs.jsx';
+export { M3ChipSet, M3FilterChip, M3AssistChip } from './M3Chip.jsx';
+export { M3TextField } from './M3TextField.jsx';
+export { M3Switch } from './M3Switch.jsx';
+export { M3Menu, M3MenuItem } from './M3Menu.jsx';

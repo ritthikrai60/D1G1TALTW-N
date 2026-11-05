@@ -1,0 +1,756 @@
+/**
+ * Connection Path Geometry
+ * Spike #262: Cable Path Rendering Algorithm (issue #1931)
+ *
+ * Pure, DOM-free functions that turn two port anchors into renderable SVG
+ * connection geometry: a cubic bezier path routed through an external
+ * "channel" (gutter) to the left or right of the rack, and an optional
+ * direction arrow at the path midpoint.
+ *
+ * This is the production implementation of the algorithm explored in
+ * docs/research/connection-routing.ts (spike #262's externalChannelPath,
+ * scored 5/5: "never crosses devices, clean visual hierarchy, natural
+ * bundling"). The reference file is NOT imported from; the shape of the
+ * options and the routing math is reproduced here deliberately, adapted to
+ * this project's anchor/offset conventions (see port-geometry.ts) and split
+ * into independently testable steps rather than one calculateConnectionPath
+ * dispatcher.
+ *
+ * Anchor coordinates must come from port-geometry.ts's getPortAnchor(s) -
+ * this module never computes a port position itself, only what to draw once
+ * two anchors are known (buildPortAnchorMap below is the one exception: it
+ * is a thin per-device loop around getPortAnchors, not a re-implementation).
+ */
+
+import type {
+  Connection,
+  DeviceType,
+  InterfaceTemplate,
+  PlacedDevice,
+  PlacedPort,
+  PortDirection,
+  Rack,
+  RackView,
+  SignalType,
+} from "$lib/types";
+import { inferDirection, inferSignalType } from "$lib/utils/port-utils";
+import {
+  getPortAnchors,
+  getPortChipPosition,
+  type PortAnchor,
+  type PortGeometryOffset,
+} from "$lib/utils/port-geometry";
+import { toHumanUnits } from "$lib/utils/position";
+import type { RackDimensions } from "$lib/utils/rack-drop-coordinator";
+
+/** A 2D point in Rack SVG space. */
+export interface Point {
+  x: number;
+  y: number;
+}
+
+/** The rack's bounding box in Rack SVG space, used to place the external gutter. */
+export interface RackBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** Which side of the rack a connection's gutter/channel routes through. */
+export type ChannelSide = "left" | "right";
+
+/** Default horizontal distance the gutter sits outside the rack body, in px. */
+export const DEFAULT_GUTTER_OFFSET = 30;
+
+/** Total tip-to-base length of a direction arrow, in px. */
+export const ARROW_LENGTH = 7;
+
+/** Total base width of a direction arrow, in px. */
+export const ARROW_WIDTH = 5;
+
+export interface CubicControlPoints {
+  c1: Point;
+  c2: Point;
+}
+
+/** Horizontal distance between adjacent lanes of one gutter, in px. */
+export const CHANNEL_LANE_SPACING = 6;
+
+/**
+ * Furthest the outermost lane sits beyond the base gutter offset, in px.
+ * The tightest neighbour is the rear view, DUAL_VIEW_GAP (24) right of the
+ * front view's frame. A lane-0 cable from a right-aligned port (anchor at
+ * least 23 inside the frame) already peaks about 17 past the frame; 8 more of
+ * gutter adds 6 to the peak, so the outermost cable stays about 23 out,
+ * inside both that gap and half the 48 between racks in a canvas row.
+ */
+export const CHANNEL_MAX_SPREAD = 8;
+
+/** A connection's lane: its position among `count` cables sharing a gutter span. */
+export interface ChannelLane {
+  index: number;
+  count: number;
+}
+
+/**
+ * Route a connection through the gutter on the rail nearer its two ports.
+ * Ports sit in a right-aligned zone (#3450), so a cable between them routes
+ * right and never runs back across either device's label (#3463). A port
+ * pair whose midpoint lies left of the rack's centre routes left.
+ */
+export function assignChannelSide(
+  source: Point,
+  target: Point,
+  rackBounds: RackBounds,
+): ChannelSide {
+  const centreX = rackBounds.x + rackBounds.width / 2;
+  return (source.x + target.x) / 2 < centreX ? "left" : "right";
+}
+
+/**
+ * Gutter offset for a connection's lane. Lane 0 sits at the base offset and
+ * each further lane one CHANNEL_LANE_SPACING further out, so parallel cables
+ * fan out instead of drawing on top of each other (see
+ * buildRenderedConnections for how lanes are assigned). A group too large to
+ * fit inside CHANNEL_MAX_SPREAD at that spacing packs its lanes closer, so
+ * the outermost one sits at the cap and every cable keeps its own lane.
+ */
+export function channelGutterOffset(
+  lane: ChannelLane,
+  gutterOffset: number = DEFAULT_GUTTER_OFFSET,
+): number {
+  const spacing =
+    lane.count > 1
+      ? Math.min(CHANNEL_LANE_SPACING, CHANNEL_MAX_SPREAD / (lane.count - 1))
+      : 0;
+  return gutterOffset + lane.index * spacing;
+}
+
+/**
+ * Control points for a cubic bezier that exits both endpoints horizontally
+ * toward a shared gutter line, then curves into the target. This is the
+ * "external channel" shape: the curve never crosses the rack body because
+ * both control points sit outside it on the same side.
+ */
+export function computeChannelControlPoints(
+  source: Point,
+  target: Point,
+  rackBounds: RackBounds,
+  side: ChannelSide,
+  gutterOffset: number = DEFAULT_GUTTER_OFFSET,
+): CubicControlPoints {
+  const gutterX =
+    side === "right"
+      ? rackBounds.x + rackBounds.width + gutterOffset
+      : rackBounds.x - gutterOffset;
+
+  return {
+    c1: { x: gutterX, y: source.y },
+    c2: { x: gutterX, y: target.y },
+  };
+}
+
+/** SVG path `d` attribute for a cubic bezier from source to target. */
+export function buildCubicBezierPath(
+  source: Point,
+  control: CubicControlPoints,
+  target: Point,
+): string {
+  return `M ${source.x},${source.y} C ${control.c1.x},${control.c1.y} ${control.c2.x},${control.c2.y} ${target.x},${target.y}`;
+}
+
+function cubicComponentAt(
+  p0: number,
+  p1: number,
+  p2: number,
+  p3: number,
+  t: number,
+): number {
+  const mt = 1 - t;
+  return (
+    mt * mt * mt * p0 +
+    3 * mt * mt * t * p1 +
+    3 * mt * t * t * p2 +
+    t * t * t * p3
+  );
+}
+
+/** Point on the cubic bezier at parameter t (De Casteljau / Bernstein form). */
+export function cubicBezierPointAt(
+  source: Point,
+  control: CubicControlPoints,
+  target: Point,
+  t: number,
+): Point {
+  return {
+    x: cubicComponentAt(source.x, control.c1.x, control.c2.x, target.x, t),
+    y: cubicComponentAt(source.y, control.c1.y, control.c2.y, target.y, t),
+  };
+}
+
+function cubicDerivativeComponentAt(
+  p0: number,
+  p1: number,
+  p2: number,
+  p3: number,
+  t: number,
+): number {
+  const mt = 1 - t;
+  return (
+    3 * mt * mt * (p1 - p0) + 6 * mt * t * (p2 - p1) + 3 * t * t * (p3 - p2)
+  );
+}
+
+/** Tangent (derivative) vector of the cubic bezier at parameter t, unnormalised. */
+export function cubicBezierTangentAt(
+  source: Point,
+  control: CubicControlPoints,
+  target: Point,
+  t: number,
+): Point {
+  return {
+    x: cubicDerivativeComponentAt(
+      source.x,
+      control.c1.x,
+      control.c2.x,
+      target.x,
+      t,
+    ),
+    y: cubicDerivativeComponentAt(
+      source.y,
+      control.c1.y,
+      control.c2.y,
+      target.y,
+      t,
+    ),
+  };
+}
+
+function lerpPoint(a: Point, b: Point, t: number): Point {
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+}
+
+/** De Casteljau subdivision: control points either side of parameter t. */
+function splitCubic(
+  p0: Point,
+  p1: Point,
+  p2: Point,
+  p3: Point,
+  t: number,
+): { left: [Point, Point, Point, Point]; right: [Point, Point, Point, Point] } {
+  const a = lerpPoint(p0, p1, t);
+  const b = lerpPoint(p1, p2, t);
+  const c = lerpPoint(p2, p3, t);
+  const d = lerpPoint(a, b, t);
+  const e = lerpPoint(b, c, t);
+  const f = lerpPoint(d, e, t);
+  return { left: [p0, a, d, f], right: [f, e, c, p3] };
+}
+
+/**
+ * Fraction of the curve's parameter range trimmed off each end when building
+ * a connection's invisible hit-stroke (see ConnectionPath.svelte and
+ * trimCubicBezier below). Not applied to the visible line or arrow.
+ */
+export const HIT_PATH_TRIM = 0.1;
+
+/**
+ * The exact cubic bezier sub-segment spanning parameter range [t0, t1] of the
+ * original curve (De Casteljau subdivision, applied twice: once to keep
+ * [0, t1], then again on that result to keep [t0, t1]). Bezier curves are
+ * closed under sub-segment extraction, so this is exact, not an
+ * approximation.
+ *
+ * Used to trim ConnectionPath's invisible hit-stroke away from both curve
+ * endpoints. A connection's endpoints are exactly its own two port anchors;
+ * an untrimmed, pointer-events-enabled hit-stroke reaching all the way to
+ * them sits on top of (ConnectionLayer renders after the device layer) each
+ * port's own, smaller hit-circle. Since the hit-stroke has no click handler,
+ * a click there does not fall through to the port or device underneath - it
+ * bubbles past them entirely to whatever ancestor does handle it (the rack
+ * container's own click handler), silently doing the wrong thing instead of
+ * selecting/clicking the port. Trimming the ends keeps the fat, hover-
+ * friendly hit target everywhere else - which, per the external-channel
+ * routing, is nearly the curve's whole length, since it spends only a short
+ * span near each end inside the rack body at all (see #1931 PR review).
+ */
+export function trimCubicBezier(
+  source: Point,
+  control: CubicControlPoints,
+  target: Point,
+  t0: number,
+  t1: number,
+): { source: Point; control: CubicControlPoints; target: Point } {
+  if (t1 <= t0) {
+    const point = cubicBezierPointAt(source, control, target, t0);
+    return { source: point, control: { c1: point, c2: point }, target: point };
+  }
+
+  const { left } = splitCubic(source, control.c1, control.c2, target, t1);
+  const t0Relative = t0 / t1;
+  const { right } = splitCubic(left[0], left[1], left[2], left[3], t0Relative);
+
+  return {
+    source: right[0],
+    control: { c1: right[1], c2: right[2] },
+    target: right[3],
+  };
+}
+
+/**
+ * Which way a direction arrow should point, or null when no arrow should be
+ * drawn. Gating rule (#1931 AC): an arrow renders only when the two ports
+ * have unambiguous, opposite roles - one "output", the other "input". Any
+ * other combination (both bidirectional, both unset, both the same role, or
+ * either side "bidirectional"/unset) renders as a plain line.
+ */
+export type ArrowDirection = "a-to-b" | "b-to-a" | null;
+
+export function resolveArrowDirection(
+  aDirection: PortDirection | undefined,
+  bDirection: PortDirection | undefined,
+): ArrowDirection {
+  if (aDirection === "output" && bDirection === "input") return "a-to-b";
+  if (aDirection === "input" && bDirection === "output") return "b-to-a";
+  return null;
+}
+
+export interface ArrowTriangle {
+  tip: Point;
+  base1: Point;
+  base2: Point;
+}
+
+export interface ArrowSize {
+  length: number;
+  width: number;
+}
+
+const DEFAULT_ARROW_SIZE: ArrowSize = {
+  length: ARROW_LENGTH,
+  width: ARROW_WIDTH,
+};
+
+/**
+ * A small triangle centred on the path midpoint, pointing along the curve's
+ * tangent there (or against it, for "b-to-a"). Returns null when there is no
+ * direction to show, or when the tangent is degenerate (zero-length, e.g. a
+ * connection whose two anchors coincide) since no orientation can be drawn.
+ */
+export function computeArrowTriangle(
+  source: Point,
+  control: CubicControlPoints,
+  target: Point,
+  direction: ArrowDirection,
+  size: ArrowSize = DEFAULT_ARROW_SIZE,
+): ArrowTriangle | null {
+  if (direction === null) return null;
+
+  const midpoint = cubicBezierPointAt(source, control, target, 0.5);
+  const rawTangent = cubicBezierTangentAt(source, control, target, 0.5);
+  const tangent =
+    direction === "b-to-a"
+      ? { x: -rawTangent.x, y: -rawTangent.y }
+      : rawTangent;
+
+  const magnitude = Math.hypot(tangent.x, tangent.y);
+  if (magnitude === 0) return null;
+
+  const unit = { x: tangent.x / magnitude, y: tangent.y / magnitude };
+  const perp = { x: -unit.y, y: unit.x };
+  const halfLength = size.length / 2;
+  const halfWidth = size.width / 2;
+
+  const tip = {
+    x: midpoint.x + unit.x * halfLength,
+    y: midpoint.y + unit.y * halfLength,
+  };
+  const baseCentre = {
+    x: midpoint.x - unit.x * halfLength,
+    y: midpoint.y - unit.y * halfLength,
+  };
+
+  return {
+    tip,
+    base1: {
+      x: baseCentre.x + perp.x * halfWidth,
+      y: baseCentre.y + perp.y * halfWidth,
+    },
+    base2: {
+      x: baseCentre.x - perp.x * halfWidth,
+      y: baseCentre.y - perp.y * halfWidth,
+    },
+  };
+}
+
+/** SVG `points` attribute for an arrow triangle's `<polygon>`. */
+export function arrowPointsAttr(triangle: ArrowTriangle): string {
+  const { tip, base1, base2 } = triangle;
+  return `${tip.x},${tip.y} ${base1.x},${base1.y} ${base2.x},${base2.y}`;
+}
+
+export interface ConnectionGeometry {
+  path: string;
+  /**
+   * A trimmed sub-segment of `path` (see trimCubicBezier/HIT_PATH_TRIM),
+   * for the invisible hit-stroke only. Never used for the visible line or
+   * arrow, both of which use the full `path`.
+   */
+  hitPath: string;
+  side: ChannelSide;
+  midpoint: Point;
+  arrow: ArrowTriangle | null;
+}
+
+export interface ConnectionGeometryOptions {
+  gutterOffset?: number;
+  arrowSize?: ArrowSize;
+}
+
+/**
+ * Full renderable geometry for one connection: the bezier path, which gutter
+ * it routed through, its midpoint, and (when direction is unambiguous) the
+ * direction arrow triangle.
+ */
+export function computeConnectionGeometry(
+  source: Point,
+  target: Point,
+  rackBounds: RackBounds,
+  lane: ChannelLane,
+  direction: ArrowDirection,
+  options: ConnectionGeometryOptions = {},
+): ConnectionGeometry {
+  const side = assignChannelSide(source, target, rackBounds);
+  const control = computeChannelControlPoints(
+    source,
+    target,
+    rackBounds,
+    side,
+    channelGutterOffset(lane, options.gutterOffset),
+  );
+  const path = buildCubicBezierPath(source, control, target);
+  const trimmed = trimCubicBezier(
+    source,
+    control,
+    target,
+    HIT_PATH_TRIM,
+    1 - HIT_PATH_TRIM,
+  );
+  const hitPath = buildCubicBezierPath(
+    trimmed.source,
+    trimmed.control,
+    trimmed.target,
+  );
+  const midpoint = cubicBezierPointAt(source, control, target, 0.5);
+  const arrow = computeArrowTriangle(
+    source,
+    control,
+    target,
+    direction,
+    options.arrowSize,
+  );
+
+  return { path, hitPath, side, midpoint, arrow };
+}
+
+/**
+ * Effective signal direction for a connection endpoint: an explicit
+ * PlacedPort.direction override wins, then the InterfaceTemplate default,
+ * then the same inferDirection() fallback PortIndicators uses for the port's
+ * own direction glyph - so a connection between two ports shows an arrow
+ * under exactly the conditions those ports already display one individually.
+ * Falls back to PlacedPort.type when no InterfaceTemplate is available
+ * (matching PlacedPort.type's documented purpose: "avoids lookups for cable
+ * routing").
+ */
+export function resolveConnectionPortDirection(
+  port: PlacedPort | undefined,
+  iface: InterfaceTemplate | undefined,
+): PortDirection | undefined {
+  const explicit = port?.direction ?? iface?.direction;
+  if (explicit) return explicit;
+
+  const type = iface?.type ?? port?.type;
+  if (!type) return undefined;
+
+  return inferDirection(type, iface?.mgmt_only);
+}
+
+/** A connection endpoint's effective signal, and whether it was set or inferred. */
+export interface ResolvedPortSignal {
+  signal: SignalType;
+  /** True when set on the PlacedPort or InterfaceTemplate, false when inferred. */
+  explicit: boolean;
+}
+
+/**
+ * Effective signal for a connection endpoint (#1936): an explicit
+ * PlacedPort.signal_type override wins, then the InterfaceTemplate value,
+ * then inferSignalType() from the type and the direction
+ * resolveConnectionPortDirection resolves, so an inferred signal agrees with
+ * the arrow drawn for the connection.
+ */
+export function resolveConnectionPortSignal(
+  port: PlacedPort | undefined,
+  iface: InterfaceTemplate | undefined,
+): ResolvedPortSignal | undefined {
+  const explicit = port?.signal_type ?? iface?.signal_type;
+  if (explicit) return { signal: explicit, explicit: true };
+
+  const type = iface?.type ?? port?.type;
+  if (!type) return undefined;
+
+  const inferred = inferSignalType(
+    type,
+    resolveConnectionPortDirection(port, iface),
+  );
+  return inferred ? { signal: inferred, explicit: false } : undefined;
+}
+
+export interface DeviceOffsetParams {
+  /** PlacedDevice.position, in internal units (1/6U). */
+  position: number;
+  deviceUHeight: number;
+  rackHeight: number;
+  uHeight: number;
+  railWidth: number;
+  rackPadding: number;
+}
+
+/**
+ * The SVG-space offset of a device's own <g transform="translate(...)"> within
+ * the Rack SVG, reproducing the formula RackDevice.svelte and Rack.svelte
+ * apply together: RAIL_WIDTH (device g's own x translate, since a rail-mounted
+ * device always spans the full interior width - slotXOffset is always 0 at
+ * rack level) and RACK_PADDING + RAIL_WIDTH + yPosition (the devices layer's y
+ * translate plus the device g's own y translate). This is the same offset
+ * documented in port-geometry.ts's PortGeometryOptions.offset, computed here
+ * from a PlacedDevice + rack dimensions instead of read off a mounted
+ * component, so ConnectionLayer can locate every device's ports without
+ * depending on RackDevice internals.
+ */
+export function computeDeviceOffset(
+  params: DeviceOffsetParams,
+): PortGeometryOffset {
+  const positionHuman = toHumanUnits(params.position);
+  const yPosition =
+    (params.rackHeight - positionHuman - params.deviceUHeight + 1) *
+    params.uHeight;
+
+  return {
+    x: params.railWidth,
+    y: params.rackPadding + params.railWidth + yPosition,
+  };
+}
+
+export interface ResolvedPortAnchor {
+  anchor: PortAnchor;
+  direction: PortDirection | undefined;
+}
+
+/**
+ * Every individually-anchored port across a set of placed devices, keyed by
+ * PlacedPort.id, paired with its effective direction. Ports shown as a count
+ * chip, whether collapsed on a narrow rack or above port-geometry.ts's
+ * HIGH_DENSITY_THRESHOLD, all anchor at the chip (#3462). A port with no
+ * anchor (wrong face, no PlacedPort) contributes no entry, which is what lets
+ * buildRenderedConnections below skip a connection to it instead of guessing
+ * at a location for it.
+ *
+ * `devices` is expected to be top-level (non-container-child) placements
+ * only, same as what RackDevice actually renders a body for. Container
+ * children (PlacedDevice.container_id set) are deliberately out of scope
+ * here, not merely forgotten: RackDevice's own container-children block
+ * renders a plain rect + label with no PortIndicators call, so a child's
+ * ports have no rendered indicator or computed anchor anywhere in the app
+ * yet, independent of this module. A connection to a child's port therefore
+ * has no anchor to resolve and is skipped by buildRenderedConnections, the
+ * same graceful fallback used for wrong-face ports.
+ * Tracked as follow-up work: #3117.
+ */
+export function buildPortAnchorMap(
+  devices: PlacedDevice[],
+  deviceTypesBySlug: Map<string, DeviceType>,
+  rackView: RackView,
+  rackDims: RackDimensions,
+): Map<string, ResolvedPortAnchor> {
+  const map = new Map<string, ResolvedPortAnchor>();
+
+  for (const placedDevice of devices) {
+    const deviceType = deviceTypesBySlug.get(placedDevice.device_type);
+    if (!deviceType?.interfaces?.length) continue;
+
+    const ports = placedDevice.ports ?? [];
+    const offset = computeDeviceOffset({
+      position: placedDevice.position,
+      deviceUHeight: deviceType.u_height,
+      rackHeight: rackDims.rackHeight,
+      uHeight: rackDims.uHeight,
+      railWidth: rackDims.railWidth,
+      rackPadding: rackDims.rackPadding,
+    });
+
+    const geometry = {
+      interfaces: deviceType.interfaces,
+      ports,
+      rackView,
+      deviceWidth: rackDims.interiorWidth,
+      deviceHeight: deviceType.u_height * rackDims.uHeight,
+      offset,
+    };
+    // A collapsed chip's ports anchor on its marker, left of the count. Cables
+    // end at the chip's right edge instead, so one leaving for the right
+    // gutter does not strike through the count (#3463).
+    const chip = getPortChipPosition(geometry);
+
+    for (const anchor of getPortAnchors(geometry)) {
+      const port = ports.find((p) => p.id === anchor.portId);
+      const iface = port
+        ? deviceType.interfaces[port.template_index]
+        : undefined;
+      map.set(anchor.portId, {
+        anchor: chip ? { ...anchor, x: chip.x + chip.width } : anchor,
+        direction: resolveConnectionPortDirection(port, iface),
+      });
+    }
+  }
+
+  return map;
+}
+
+/**
+ * Index connections by the racks their ports live in (#3373), so each rack
+ * face scans only its own connections instead of the whole layout's.
+ *
+ * A connection goes in the bucket of every rack holding one of its ports, so
+ * a cross-rack connection sits in both racks' buckets. A face only draws a
+ * connection whose two ports are both anchored on its own devices, so its
+ * rack's bucket always contains every connection it can draw. Buckets keep
+ * layout order, which keeps buildRenderedConnections' per-face channel
+ * lanes, and so the routing, identical to a scan of the full list.
+ *
+ * Pass the previous index to keep an unchanged bucket's array identity: a
+ * rack whose bucket holds the same connection objects in the same order gets
+ * the previous array back, so a derivation reading it does not re-run.
+ */
+export function indexConnectionsByRack(
+  racks: Rack[],
+  connections: Connection[],
+  previous?: Map<string, Connection[]>,
+): Map<string, Connection[]> {
+  const rackIdsByPort = new Map<string, string[]>();
+  for (const rack of racks) {
+    for (const device of rack.devices) {
+      for (const port of device.ports ?? []) {
+        const rackIds = rackIdsByPort.get(port.id);
+        if (!rackIds) rackIdsByPort.set(port.id, [rack.id]);
+        else if (!rackIds.includes(rack.id)) rackIds.push(rack.id);
+      }
+    }
+  }
+
+  const buckets = new Map<string, Connection[]>();
+  const addTo = (rackId: string, connection: Connection) => {
+    const bucket = buckets.get(rackId);
+    if (!bucket) buckets.set(rackId, [connection]);
+    else if (bucket[bucket.length - 1] !== connection) bucket.push(connection);
+  };
+  for (const connection of connections) {
+    for (const rackId of rackIdsByPort.get(connection.a_port_id) ?? []) {
+      addTo(rackId, connection);
+    }
+    for (const rackId of rackIdsByPort.get(connection.b_port_id) ?? []) {
+      addTo(rackId, connection);
+    }
+  }
+
+  if (previous) {
+    for (const [rackId, bucket] of buckets) {
+      const prior = previous.get(rackId);
+      if (
+        prior &&
+        prior.length === bucket.length &&
+        prior.every((c, i) => c === bucket[i])
+      ) {
+        buckets.set(rackId, prior);
+      }
+    }
+  }
+
+  return buckets;
+}
+
+export interface RenderedConnection {
+  connection: Connection;
+  geometry: ConnectionGeometry;
+}
+
+/**
+ * Resolve every connection to its renderable geometry, skipping any
+ * connection where either endpoint has no anchor.
+ *
+ * Lanes: a cable runs through its gutter between its two ports' heights, so
+ * only cables in the same gutter spanning the same heights can draw on top
+ * of each other. Each such cable takes the next lane out, in render order; a
+ * skipped (unanchored) connection takes no lane. Cables with a span of their
+ * own stay on lane 0.
+ *
+ * Grouped-mode fallback decision (#1931 AC, #3089): a port with no anchor -
+ * because the port is on the other rack face, or the layout predates
+ * PlacedPort identity - is skipped
+ * entirely rather than approximated (e.g. anchored to the device's edge
+ * centre). An edge-centre fallback would draw a specific, plausible-looking
+ * line to a location that is not actually where the port is, misleading the
+ * viewer about what is connected to what. Silently omitting the connection
+ * is the honest failure mode; the connection still exists in the data and
+ * reappears the moment its port becomes individually addressable (device
+ * drops under the threshold, or the layout gains PlacedPort ids).
+ */
+export function buildRenderedConnections(
+  connections: Connection[],
+  portAnchors: Map<string, ResolvedPortAnchor>,
+  rackBounds: RackBounds,
+  options: ConnectionGeometryOptions = {},
+): RenderedConnection[] {
+  const resolved: Array<{
+    connection: Connection;
+    a: ResolvedPortAnchor;
+    b: ResolvedPortAnchor;
+    span: string;
+  }> = [];
+  const countsBySpan = new Map<string, number>();
+
+  for (const connection of connections) {
+    const a = portAnchors.get(connection.a_port_id);
+    const b = portAnchors.get(connection.b_port_id);
+    if (!a || !b) continue;
+
+    const side = assignChannelSide(a.anchor, b.anchor, rackBounds);
+    const span = `${side},${Math.min(a.anchor.y, b.anchor.y)},${Math.max(a.anchor.y, b.anchor.y)}`;
+    countsBySpan.set(span, (countsBySpan.get(span) ?? 0) + 1);
+    resolved.push({ connection, a, b, span });
+  }
+
+  const nextLaneBySpan = new Map<string, number>();
+  const results: RenderedConnection[] = [];
+
+  for (const { connection, a, b, span } of resolved) {
+    const index = nextLaneBySpan.get(span) ?? 0;
+    nextLaneBySpan.set(span, index + 1);
+
+    const direction = resolveArrowDirection(a.direction, b.direction);
+    const geometry = computeConnectionGeometry(
+      a.anchor,
+      b.anchor,
+      rackBounds,
+      { index, count: countsBySpan.get(span) ?? 1 },
+      direction,
+      options,
+    );
+
+    results.push({ connection, geometry });
+  }
+
+  return results;
+}

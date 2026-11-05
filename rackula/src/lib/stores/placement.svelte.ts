@@ -1,0 +1,236 @@
+/**
+ * Placement Store
+ * Manages tap-to-place and keyboard-place workflow state.
+ * Tracks the pending device being placed, the target face, and (for the
+ * keyboard flow) a U-slot cursor within a target rack.
+ */
+
+import type { DeviceType, DeviceFace, DeviceRotation, Rack } from "$lib/types";
+import { canRotate, orientDeviceType } from "$lib/utils/device-width";
+import { rotationAnnouncement } from "$lib/utils/placement-keyboard";
+import type { DropFeedback } from "$lib/utils/dragdrop";
+
+// State
+let isPlacing = $state(false);
+let pendingDevice = $state<DeviceType | null>(null);
+let targetFace = $state<DeviceFace>("front");
+
+/**
+ * Turn chosen for the armed device before it is placed (R key). The device is
+ * handed out as it will stand, so the preview, the valid slots and the
+ * placement all use the turned footprint.
+ */
+let rotation = $state<DeviceRotation>(0);
+const standingDevice = $derived(
+  pendingDevice && orientDeviceType(pendingDevice, rotation),
+);
+
+/**
+ * Keyboard placement cursor.
+ * `targetRackId` is the rack the cursor is currently in; `cursorPosition` is the
+ * highlighted whole-U slot (1-indexed) within that rack. Both are null while no
+ * keyboard cursor is active (e.g. pure pointer tap-to-place never sets them).
+ */
+let targetRackId = $state<string | null>(null);
+let cursorPosition = $state<number | null>(null);
+
+/**
+ * The pointer's verdict on the cursor slot, from the resolver the click uses,
+ * so the ghost over a carrier agrees with the placement. Null for a keyboard
+ * cursor, which only stops on rail slots. Kept with the rack it was resolved
+ * against: layout edits replace the rack, so an undo or a new device under a
+ * still pointer retires the verdict.
+ */
+let cursorFeedback = $state.raw<{ feedback: DropFeedback; rack: Rack } | null>(
+  null,
+);
+
+/**
+ * Screen-reader announcement for placement state transitions.
+ * Set on pick-up, slot change, cancel, and complete so assistive technologies
+ * can announce the mode and position. Cleared on the next startPlacement so
+ * stale text is never re-read.
+ */
+let placementAnnouncement = $state<string | null>(null);
+
+/**
+ * Start placement mode with a device.
+ * @param device - The device type to place
+ * @param face - Target face for half-depth devices (default: 'front')
+ */
+function startPlacement(device: DeviceType, face: DeviceFace = "front"): void {
+  placementAnnouncement = null;
+  isPlacing = true;
+  pendingDevice = device;
+  targetFace = face;
+  rotation = 0;
+  targetRackId = null;
+  cursorPosition = null;
+  cursorFeedback = null;
+}
+
+/**
+ * Internal helper to reset placement state.
+ * Used by cancel, complete, and resetPlacementStore.
+ */
+function resetState(): void {
+  isPlacing = false;
+  pendingDevice = null;
+  targetFace = "front";
+  rotation = 0;
+  targetRackId = null;
+  cursorPosition = null;
+  cursorFeedback = null;
+}
+
+/**
+ * Cancel placement mode without placing the device.
+ * Announces "Placement cancelled" to screen readers via the assertive live region.
+ * Use abandonPlacement() for silent internal resets that should not be announced.
+ */
+function cancelPlacement(): void {
+  if (isPlacing) {
+    placementAnnouncement = "Placement cancelled";
+  }
+  resetState();
+}
+
+/**
+ * Silently abandon placement without a screen-reader announcement.
+ * Use this when placement is being cleared as an internal side-effect of another
+ * action (e.g. a drag-and-drop completing while click-to-place was still armed),
+ * not when the user has explicitly cancelled. cancelPlacement() would announce
+ * "Placement cancelled" in that case, which would be misleading.
+ */
+function abandonPlacement(): void {
+  resetState();
+}
+
+/**
+ * Complete placement mode after successfully placing the device.
+ * `summary` overrides the announcement (the keyboard flow passes a rich
+ * "Placed X at U12 of Rack 1" string); without it the default names the device.
+ */
+function completePlacement(summary?: string): void {
+  if (isPlacing) {
+    const deviceName = pendingDevice?.model ?? pendingDevice?.slug ?? "Device";
+    placementAnnouncement = summary ?? `${deviceName} placed`;
+  }
+  resetState();
+}
+
+/**
+ * Turn the armed device onto its side, or back flat, before it is placed.
+ * Only a device with a measured width turns.
+ * @returns true when the device turned
+ */
+function toggleRotation(): boolean {
+  if (!isPlacing || !pendingDevice || !canRotate(pendingDevice)) return false;
+  rotation = rotation === 90 ? 0 : 90;
+  // The pointer's verdict was for the old footprint; the next pointer move
+  // resolves the turned one, and until then the rail check stands in.
+  cursorFeedback = null;
+  placementAnnouncement = rotationAnnouncement(rotation);
+  return true;
+}
+
+/**
+ * Change the target face for placement (for half-depth devices).
+ * @param face - The face to target ('front' or 'rear')
+ */
+function setTargetFace(face: DeviceFace): void {
+  targetFace = face;
+}
+
+/**
+ * Move the keyboard cursor to a rack and U-slot. Setting the cursor does not
+ * place anything; it only drives the preview and the position announcement.
+ * Passing `position: null` targets the rack with no slot (e.g. switching to a
+ * full rack), keeping `targetRackId` and `cursorPosition` consistent so the
+ * preview never shows on a stale rack.
+ * @param rackId - Rack the cursor is in
+ * @param position - Whole-U slot (1-indexed) within that rack, or null for none
+ * @param feedback - The pointer's verdict on the slot; omitted by the keyboard
+ * @param rack - The rack the verdict was resolved against
+ */
+function setCursor(
+  rackId: string,
+  position: number | null,
+  feedback: DropFeedback | null = null,
+  rack: Rack | null = null,
+): void {
+  targetRackId = rackId;
+  // Rail positions are whole-U integers (carrier-first model); reject a
+  // fractional slot rather than carry it into placement.
+  cursorPosition = position == null ? null : Math.round(position);
+  cursorFeedback = feedback && rack ? { feedback, rack } : null;
+}
+
+/**
+ * Set the live position announcement (e.g. "U12 of Rack 1, available").
+ * Kept separate from completePlacement so slot changes announce without ending
+ * placement.
+ */
+function announcePosition(text: string): void {
+  placementAnnouncement = text;
+}
+
+/**
+ * Reset placement store state (for testing).
+ */
+export function resetPlacementStore(): void {
+  placementAnnouncement = null;
+  resetState();
+}
+
+/**
+ * Get the placement store with reactive state and actions.
+ * @returns Store object with getters and actions
+ */
+export function getPlacementStore() {
+  return {
+    get isPlacing() {
+      return isPlacing;
+    },
+    /** The armed device as it will stand: turned when rotation is 90. */
+    get pendingDevice() {
+      return standingDevice;
+    },
+    /** Turn chosen for the armed device, 0 or 90. */
+    get rotation() {
+      return rotation;
+    },
+    get targetFace() {
+      return targetFace;
+    },
+    /** Rack the keyboard cursor is in, or null when no keyboard cursor is active. */
+    get targetRackId() {
+      return targetRackId;
+    },
+    /** Highlighted whole-U slot (1-indexed) of the keyboard cursor, or null. */
+    get cursorPosition() {
+      return cursorPosition;
+    },
+    /** The pointer's verdict, while `rack` is still the one it was resolved against. */
+    cursorFeedbackFor(rack: Rack): DropFeedback | null {
+      return cursorFeedback?.rack === rack ? cursorFeedback.feedback : null;
+    },
+    /**
+     * Screen-reader announcement text for the most recent placement state
+     * transition (mode entered, position changed, placed, or cancelled). Null
+     * while idle. Rendered in an assertive aria-live region so screen readers
+     * announce it immediately.
+     */
+    get placementAnnouncement() {
+      return placementAnnouncement;
+    },
+    startPlacement,
+    cancelPlacement,
+    abandonPlacement,
+    completePlacement,
+    setTargetFace,
+    toggleRotation,
+    setCursor,
+    announcePosition,
+  };
+}

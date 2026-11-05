@@ -1,0 +1,89 @@
+{
+  // Cloudflare Workers config for the dev surface, d.racku.la (#2134).
+  //
+  // One Worker serves the built SPA and the persistence API: run_worker_first
+  // sends `/api/*` to src/worker.ts and everything else is served from ../dist.
+  // It sits behind the existing Cloudflare Access app for d.racku.la and runs
+  // AUTH_MODE=none, so Access is the only gate. Prod (count.racku.la) is a
+  // separate, assets-only Worker configured in the root wrangler.jsonc. Do not
+  // merge the two.
+  //
+  // Deployed by .github/workflows/deploy-dev.yml. `wrangler dev` and
+  // `npm run build:worker` need the SPA built first (`npm run build` at the
+  // repo root), because the assets directory is ../dist.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rackula-dev",
+  "main": "src/worker.ts",
+  // Pinned workerd compatibility baseline. nodejs_compat gives node:crypto etc.
+  // on workerd (its v2 module resolution is active for dates >= 2024-09-23).
+  // Bump this deliberately when adopting newer workerd semantics.
+  "compatibility_date": "2025-09-23",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // deploy-dev.yml generates dist/_headers, dist/.assetsignore and a
+  // server-mode dist/config.js before upload. They are never committed to
+  // static/, because publicDir copies static/ into every self-host image too.
+  // run_worker_first requires wrangler >= 4.20.
+  "assets": {
+    "directory": "../dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"],
+  },
+
+  // A route, not a custom_domain, as for prod (#3216): d.racku.la already had
+  // a proxied record and edge certificate, so the route intercepted ahead of
+  // the VPS origin with no DNS change. That origin was destroyed (#1986), so
+  // the DNS record is now a proxied placeholder with nothing behind it:
+  // removing this route takes d.racku.la offline. From api/, roll back with
+  // `wrangler versions deploy <previous-version-id>@100%` instead.
+  "routes": [{ "pattern": "d.racku.la/*", "zone_name": "racku.la" }],
+
+  // preview_urls stays on so `wrangler versions upload` yields a workers.dev
+  // URL for the pre-promotion smoke: Bot Fight Mode challenges CI on every
+  // racku.la host. Preview URLs are outside Access and outlive their version.
+  // The SPA there is the same open-source bundle, and RACKULA_API_HOST below
+  // locks /api/* to d.racku.la, so a preview URL answers 404 there and never
+  // reaches R2. deploy-dev.yml asserts that on every deploy.
+  "workers_dev": false,
+  "preview_urls": true,
+
+  "r2_buckets": [
+    {
+      "binding": "LAYOUTS",
+      "bucket_name": "rackula-layouts-dev",
+    },
+  ],
+
+  // Bundle exclusions (#2626): keep the native argon2 addon and pino (which
+  // pulls node:fs) out of the workerd graph. Local auth is never reached on the
+  // Worker (AUTH_MODE=none), and the Workers logger path uses a console-JSON
+  // seam, so these aliases are inert at runtime but required so the bundle is
+  // free of @node-rs/argon2 and node:fs.
+  "alias": {
+    "@node-rs/argon2": "./src/worker/argon2-stub.ts",
+    "pino": "./src/worker/pino-stub.ts",
+    "hono/bun": "./src/worker/hono-bun-stub.ts",
+    "./storage/filesystem-driver": "./src/worker/filesystem-driver-stub.ts",
+  },
+
+  // Plain vars, not secrets: none of these is sensitive. The Access team
+  // domain and application AUD tag both appear in the public Access login
+  // redirect for d.racku.la. The Worker fails closed if any CF_ACCESS_* value
+  // is missing (#2913). RACKULA_API_HOST must match the route host
+  // (worker.test.ts checks). api/.dev.vars blanks the Access values and the
+  // host lock for local `wrangler dev`. deploy-dev.yml adds APP_VERSION and
+  // APP_COMMIT per upload for /api/version.
+  "vars": {
+    "NODE_ENV": "production",
+    "CORS_ORIGIN": "https://d.racku.la",
+    "RACKULA_API_HOST": "d.racku.la",
+    "CF_ACCESS_JWKS_URL": "https://gwilym.cloudflareaccess.com/cdn-cgi/access/certs",
+    "CF_ACCESS_ISSUER": "https://gwilym.cloudflareaccess.com",
+    "CF_ACCESS_AUD": "1ea609e49a2f7105b29c169d259406673aaf0c1f51ab5870f16a9c1dc6e87a38",
+  },
+
+  "observability": {
+    "enabled": true,
+  },
+}

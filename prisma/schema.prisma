@@ -1,0 +1,135 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Network {
+  id              String    @id
+  name            String
+  cidr            String    @unique
+  gateway         String?   @default("")
+  dnsServers      Json?     @default("[]")
+  dhcpServer      String?   @default("")
+  interfaceName   String?   @default("Custom VLAN/Subnet")
+  description     String?   @default("")
+  localIp         String?   @default("")
+  mac             String?   @default("")
+  vlanId          String?   @default("")
+  isAutoDetected  Boolean   @default(false)
+  isConnectedNow  Boolean   @default(false)
+  lastScannedAt   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("networks")
+}
+
+model Room {
+  id          String    @id
+  roomNumber  String
+  name        String
+  roomType    String    @default("Office")
+  floorIdx    Int       @default(0)
+  floorLabel  String    @default("00_Ground_Floor")
+  color       String?   @default("#38bdf8")
+  vlan        String?   @default("")
+  description String?   @default("")
+  width       Float     @default(12.0)
+  depth       Float     @default(10.0)
+  posX        Float     @default(0.0)
+  posY        Float     @default(1.6)
+  posZ        Float     @default(0.0)
+  polygon     Json?     @default("[]")
+  devices     Device[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([floorIdx])
+  @@index([roomNumber])
+  @@map("rooms")
+}
+
+model Device {
+  id               String    @id
+  name             String
+  category         String    @default("Generic")
+  customType       String?   @default("")
+  color            String?   @default("#38bdf8")
+  status           String    @default("Online")
+  value            String?   @default("")
+  ip               String?   @default("")
+  subnet           String?   @default("")
+  mac              String?   @default("")
+  vendor           String?   @default("Generic Network Device")
+  hostname         String?   @default("")
+  osFirmware       String?   @default("")
+  serialNumber     String?   @default("")
+  assetTag         String?   @default("")
+  connectedSwitch  String?   @default("")
+  switchPort       String?   @default("")
+  vlan             String?   @default("VLAN 1")
+  isPlaced         Boolean   @default(false)
+  floorIdx         Int?
+  floorLabel       String?   @default("00_Ground_Floor")
+  roomId           String?
+  roomNumber       String?   @default("")
+  posX             Float?
+  posY             Float?
+  posZ             Float?
+  modelType        String?   @default("pin")
+  rotationY        Float?    @default(0.0)
+  parentRackId     String?   @default("")
+  uPosition        Int?
+  uHeight          Int?      @default(1)
+  rackFace         String?   @default("front")
+  isFullDepth      Boolean   @default(true)
+  rackConfig       Json?     @default("{}")
+  hierarchy        Json?     @default("{}")
+  networkInfo      Json?     @default("{}")
+  hardwareInfo     Json?     @default("{}")
+  spatialInfo      Json?     @default("{}")
+  telemetry        Json?     @default("{}")
+  openPorts        Json?     @default("[]")
+  snmpInfo         Json?     @default("{}")
+  switchInterfaces Json?     @default("[]")
+  credentials      Json?     @default("{}")
+  latencyMs        Float?
+  latencyHistory   Json?     @default("[]")
+  lastSeen         DateTime? @default(now())
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  room             Room?     @relation(fields: [roomId], references: [id], onDelete: SetNull)
+
+  @@index([isPlaced])
+  @@index([floorIdx])
+  @@index([parentRackId])
+  @@index([category])
+  @@index([status])
+  @@index([ip])
+  @@map("devices")
+}
+
+model ScanHistory {
+  id           String   @id
+  timestamp    DateTime @default(now())
+  cidr         String?  @default("")
+  scanMode     String   @default("subnet")
+  devicesFound Int      @default(0)
+  portsScanned Int      @default(0)
+  summary      Json?    @default("{}")
+
+  @@map("scan_history")
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}

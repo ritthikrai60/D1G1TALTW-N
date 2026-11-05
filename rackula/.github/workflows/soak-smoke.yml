@@ -1,0 +1,105 @@
+name: Soak Smoke
+
+# Scheduled browser smoke check against the live prod and dev deployments,
+# independent of any deploy trigger. It is the standing health signal for both
+# Workers. (Its 7-day green streak was the gate for #1986, the VPS
+# decommission, which is done.) Read recent runs with:
+#
+#   gh run list --workflow=soak-smoke.yml --limit 50
+#
+# A run's conclusion is a plain success/failure across both targets (matrix
+# fail-fast is off so both legs always run, but either leg failing marks the
+# whole run failed), so the streak query above is a straightforward read of
+# the "conclusion" column with no per-job digging required. See issue #2676.
+#
+# count.racku.la is public (confirmed by #3094: prod stays public; M017 brings
+# its own OAuth later) and is served from Cloudflare Workers Static Assets as of
+# #2029, so it needs no CF Access token. d.racku.la is the rackula-dev Worker
+# (#2134) behind Cloudflare Access and authenticates via the same service-token
+# secrets deploy-dev.yml uses (CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET,
+# added by #2346).
+
+on:
+  schedule:
+    # Every 6 hours at :43, off the top and bottom of the hour to avoid the
+    # scheduler's busiest minutes.
+    - cron: "43 */6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: soak-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Smoke (${{ matrix.target.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - name: prod
+            url: https://count.racku.la
+            access: false
+          - name: dev
+            url: https://d.racku.la
+            access: true
+    env:
+      SMOKE_TEST_URL: ${{ matrix.target.url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-chromium-${{ hashFiles('package-lock.json') }}
+          restore-keys: playwright-${{ runner.os }}-chromium-
+
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+
+      # Cloudflare serves a Managed Challenge to datacenter IPs across the zone.
+      # The specs navigate first so Chromium solves it, then use `page.request`,
+      # which inherits the clearance cookie. Before that fix a bare API request
+      # saw a 403 challenge page, which is why every run of this workflow failed
+      # from 2026-07-20 until #2029 -- 79 runs, zero successes, predating the
+      # August outage entirely.
+      #
+      # Cloudflare Access credentials reach the dev leg's smoke step only.
+      # count.racku.la is public (#3094), and step scope keeps the token away
+      # from npm ci's lifecycle scripts and every other step.
+      # playwright.smoke.config.ts treats empty values as absent. The same flag
+      # turns on the /api/layouts check, since only the Access-gated dev
+      # surface has an API.
+      - name: Browser smoke test against deployed app
+        env:
+          CF_ACCESS_CLIENT_ID: ${{ matrix.target.access && secrets.CF_ACCESS_CLIENT_ID || '' }}
+          CF_ACCESS_CLIENT_SECRET: ${{ matrix.target.access && secrets.CF_ACCESS_CLIENT_SECRET || '' }}
+          EXPECT_SERVER_API: ${{ matrix.target.access && '1' || '' }}
+        run: npm run test:e2e:smoke
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: soak-smoke-report-${{ matrix.target.name }}
+          path: playwright-report/
+          retention-days: 7

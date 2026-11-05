@@ -1,0 +1,283 @@
+/**
+ * Placement Store Tests
+ * Tests for mobile tap-to-place workflow state management
+ */
+
+import { describe, it, expect, beforeEach } from "vitest";
+import {
+  getPlacementStore,
+  resetPlacementStore,
+} from "$lib/stores/placement.svelte";
+import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
+import { resetHistoryStore } from "$lib/stores/history.svelte";
+import type { DeviceType } from "$lib/types";
+import { createTestRack } from "./factories";
+
+describe("placement store", () => {
+  // Mock device type for testing
+  const mockDevice: DeviceType = {
+    slug: "test-device",
+    manufacturer: "Test",
+    model: "Device 1U",
+    u_height: 1,
+    category: "server",
+    colour: "#333333",
+    is_full_depth: true,
+  };
+
+  const mockHalfDepthDevice: DeviceType = {
+    slug: "test-half-depth",
+    manufacturer: "Test",
+    model: "Switch 1U",
+    u_height: 1,
+    category: "network",
+    colour: "#0066cc",
+    is_full_depth: false,
+  };
+
+  beforeEach(() => {
+    resetPlacementStore();
+  });
+
+  describe("initial state", () => {
+    it("has isPlacing as false by default", () => {
+      const store = getPlacementStore();
+      expect(store.isPlacing).toBe(false);
+    });
+
+    it("has pendingDevice as null by default", () => {
+      const store = getPlacementStore();
+      expect(store.pendingDevice).toBeNull();
+    });
+
+    it("has targetFace as front by default", () => {
+      const store = getPlacementStore();
+      expect(store.targetFace).toBe("front");
+    });
+  });
+
+  describe("startPlacement()", () => {
+    it("sets isPlacing to true", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      expect(store.isPlacing).toBe(true);
+    });
+
+    it("stores the pending device", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      expect(store.pendingDevice).toEqual(mockDevice);
+    });
+
+    it("defaults targetFace to front", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      expect(store.targetFace).toBe("front");
+    });
+
+    it("allows specifying target face", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockHalfDepthDevice, "rear");
+      expect(store.targetFace).toBe("rear");
+    });
+
+    it("replaces previous pending device", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      store.startPlacement(mockHalfDepthDevice);
+      expect(store.pendingDevice).toEqual(mockHalfDepthDevice);
+    });
+  });
+
+  describe("cancelPlacement()", () => {
+    it("sets isPlacing to false", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      store.cancelPlacement();
+      expect(store.isPlacing).toBe(false);
+    });
+
+    it("clears pending device", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      store.cancelPlacement();
+      expect(store.pendingDevice).toBeNull();
+    });
+
+    it("resets targetFace to front", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockHalfDepthDevice, "rear");
+      store.cancelPlacement();
+      expect(store.targetFace).toBe("front");
+    });
+
+    it("is safe to call when not placing", () => {
+      const store = getPlacementStore();
+      expect(() => store.cancelPlacement()).not.toThrow();
+      expect(store.isPlacing).toBe(false);
+      // No active placement means nothing to announce to screen readers.
+      expect(store.placementAnnouncement).toBeNull();
+    });
+
+    it("sets placementAnnouncement to cancelled text", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      store.cancelPlacement();
+      expect(store.placementAnnouncement).toBe("Placement cancelled");
+    });
+  });
+
+  describe("abandonPlacement()", () => {
+    it("resets placement state without an SR announcement", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      store.abandonPlacement();
+      expect(store.isPlacing).toBe(false);
+      expect(store.pendingDevice).toBeNull();
+      expect(store.placementAnnouncement).toBeNull();
+    });
+  });
+
+  describe("completePlacement()", () => {
+    it("sets isPlacing to false", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      store.completePlacement();
+      expect(store.isPlacing).toBe(false);
+    });
+
+    it("clears pending device", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      store.completePlacement();
+      expect(store.pendingDevice).toBeNull();
+    });
+
+    it("resets targetFace to front", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockHalfDepthDevice, "rear");
+      store.completePlacement();
+      expect(store.targetFace).toBe("front");
+    });
+
+    it("is safe to call when not placing", () => {
+      const store = getPlacementStore();
+      expect(() => store.completePlacement()).not.toThrow();
+      expect(store.isPlacing).toBe(false);
+      // No active placement means nothing to announce to screen readers.
+      expect(store.placementAnnouncement).toBeNull();
+    });
+  });
+
+  describe("setTargetFace()", () => {
+    it("updates target face during placement", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockHalfDepthDevice);
+      store.setTargetFace("rear");
+      expect(store.targetFace).toBe("rear");
+    });
+
+    it("can switch between faces", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockHalfDepthDevice);
+      store.setTargetFace("rear");
+      store.setTargetFace("front");
+      expect(store.targetFace).toBe("front");
+    });
+  });
+
+  describe("setCursor() (keyboard placement)", () => {
+    it("records the target rack and slot for the keyboard cursor", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      store.setCursor("rack-1", 5);
+      expect(store.targetRackId).toBe("rack-1");
+      expect(store.cursorPosition).toBe(5);
+    });
+
+    it("rounds a fractional slot to a whole U (rail invariant)", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      store.setCursor("rack-1", 4.6);
+      expect(store.cursorPosition).toBe(5);
+    });
+
+    it("targets a rack with no slot when position is null (full rack)", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      store.setCursor("rack-2", null);
+      expect(store.targetRackId).toBe("rack-2");
+      expect(store.cursorPosition).toBeNull();
+    });
+
+    it("drops the pointer's verdict when the keyboard moves the cursor", () => {
+      const store = getPlacementStore();
+      const rack = createTestRack({ id: "rack-1" });
+      store.startPlacement(mockDevice);
+      store.setCursor("rack-1", 5, "blocked", rack);
+      expect(store.cursorFeedbackFor(rack)).toBe("blocked");
+      store.setCursor("rack-1", 6);
+      expect(store.cursorFeedbackFor(rack)).toBeNull();
+    });
+
+    it("drops the pointer's verdict when the device turns, since it was for the old footprint", () => {
+      const store = getPlacementStore();
+      const rack = createTestRack({ id: "rack-1" });
+      store.startPlacement({ ...mockDevice, width_mm: 179, height_mm: 34.5 });
+      store.setCursor("rack-1", 5, "valid", rack);
+      expect(store.toggleRotation()).toBe(true);
+      expect(store.cursorFeedbackFor(rack)).toBeNull();
+    });
+
+    it("drops the pointer's verdict once the rack changes under a still pointer", () => {
+      resetLayoutStore();
+      resetHistoryStore();
+      const layoutStore = getLayoutStore();
+      const rackId = layoutStore.addRack("Test Rack", 12)!.id;
+      layoutStore.addDeviceTypeRaw(mockDevice);
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      store.setCursor(rackId, 5, "valid", layoutStore.getRackById(rackId));
+      expect(store.cursorFeedbackFor(layoutStore.getRackById(rackId)!)).toBe(
+        "valid",
+      );
+
+      // A device lands in the slot the verdict was resolved for.
+      expect(layoutStore.placeDevice(rackId, mockDevice.slug, 5)).toBe(true);
+      expect(
+        store.cursorFeedbackFor(layoutStore.getRackById(rackId)!),
+      ).toBeNull();
+
+      // Undo restores the contents, but the verdict is not resurrected.
+      expect(layoutStore.undo()).toBe(true);
+      expect(
+        store.cursorFeedbackFor(layoutStore.getRackById(rackId)!),
+      ).toBeNull();
+    });
+
+    it("clears the cursor on startPlacement so a new pick-up starts fresh", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      store.setCursor("rack-1", 5);
+      store.startPlacement(mockDevice);
+      expect(store.targetRackId).toBeNull();
+      expect(store.cursorPosition).toBeNull();
+    });
+  });
+
+  describe("resetPlacementStore()", () => {
+    it("resets all state to defaults", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice, "rear");
+      store.setCursor("rack-1", 5);
+
+      resetPlacementStore();
+
+      expect(store.isPlacing).toBe(false);
+      expect(store.pendingDevice).toBeNull();
+      expect(store.targetFace).toBe("front");
+      expect(store.targetRackId).toBeNull();
+      expect(store.cursorPosition).toBeNull();
+    });
+  });
+});

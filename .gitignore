@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+*/node_modules/
+.pnp
+.pnp.js
+
+# Production builds
+dist/
+*/dist/
+
+# Environment and sensitive variables
+.env
+.env.local
+.env.*.local
+.env.*
+!.env.example
+
+# Upstream reference repos
+material-web/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS / Editor metadata
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Temporary and CAD/Blender backup artifacts
+*.bak
+*.tmp
+*.bin
+*.blend1
+mcp_run_arg.json
+pypdfium_test.png
+test_full_page.png
+scripts/*_temp.json
+scripts/ingetrazo_call_args.json
+
+# Coverage / tests
+coverage/
+.nyc_output/

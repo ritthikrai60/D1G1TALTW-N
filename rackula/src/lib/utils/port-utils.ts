@@ -1,0 +1,357 @@
+/**
+ * Port Utilities
+ * Functions for port instantiation when devices are placed
+ */
+
+import type {
+  DeviceType,
+  InterfaceType,
+  KnownInterfaceType,
+  PatchBayNormal,
+  PlacedDevice,
+  PlacedPort,
+  PortDirection,
+  SignalType,
+} from "$lib/types";
+import { InterfaceTypeSchema } from "$lib/schemas";
+import { generateId } from "$lib/utils/device";
+
+export type PortCategory = "network" | "power" | "console" | "av";
+
+// Typed as the hand-written union so a schema value missing from
+// KnownInterfaceType in $lib/types fails to compile.
+const KNOWN_INTERFACE_TYPES: ReadonlySet<string> = new Set<KnownInterfaceType>(
+  InterfaceTypeSchema.options,
+);
+
+/**
+ * True when this build knows the interface type (#3289). Guard lookups in
+ * per-type maps with it: an unknown type read from a newer file can be any
+ * string, including an Object prototype key such as "constructor".
+ */
+export function isKnownInterfaceType(
+  type: InterfaceType,
+): type is KnownInterfaceType {
+  return KNOWN_INTERFACE_TYPES.has(type);
+}
+
+/**
+ * Pro audio / AV interface types (spike #1927 taxonomy). Listed explicitly
+ * rather than matched by substring: the set spans audio, video, control, and
+ * data connectors (xlr, hdmi, rs-232, dante, ...) with no shared naming
+ * pattern to key off, unlike the power/console heuristics below.
+ */
+const AV_INTERFACE_TYPES = new Set<string>([
+  // Audio
+  "xlr-3",
+  "trs-1-4",
+  "ts-1-4",
+  "rca",
+  "adat-optical",
+  "midi-din",
+  "bnc",
+  "db25-audio",
+  "phoenix",
+  "speakon",
+  "xlr-5",
+  // Video
+  "displayport",
+  "hdmi",
+  "sdi-bnc",
+  "vga",
+  // Control
+  "dmx-xlr",
+  "rs-232",
+  "rs-422",
+  // Other
+  "aes3",
+  "avb",
+  "dante",
+]);
+
+/**
+ * Interface types whose direction defaults to "input" (spike #1927 taxonomy):
+ * console ports and the AV control-serial types. Checked before
+ * AV_INTERFACE_TYPES in inferDirection() since rs-232/rs-422 are members of
+ * both sets and the specific input default takes priority. Management-only
+ * interfaces also default to "input", but via the separate mgmt_only check
+ * in inferDirection(), not through this set: the "management" interface
+ * type itself falls through to "bidirectional" unless mgmt_only is set.
+ */
+const INPUT_DEFAULT_TYPES = new Set<string>(["console", "rs-232", "rs-422"]);
+
+/**
+ * Categorize an interface type string into network, power, console, or av.
+ * Uses string matching for network/power/console so it handles future types
+ * (e.g. power-inlet-*) even before they are added to the InterfaceType enum.
+ */
+export function getPortCategory(type: string): PortCategory {
+  if (AV_INTERFACE_TYPES.has(type)) {
+    return "av";
+  }
+  if (
+    type === "console" ||
+    type.includes("usb") ||
+    type.includes("serial") ||
+    type.includes("de-9")
+  ) {
+    return "console";
+  }
+  if (type.includes("power") || type.includes("iec") || type.includes("nema")) {
+    return "power";
+  }
+  return "network";
+}
+
+/** Outline a port marker is drawn with on the rack canvas. */
+export type PortMarkerShape = "circle" | "square";
+
+/**
+ * Marker shape for an interface type (#3450): shape encodes the medium, colour
+ * keeps encoding the speed. Pluggable cages (the `-x-` types: SFP, SFP+, SFP28
+ * and the QSFP families) are squares; copper and every other or unknown type
+ * is a circle. String matching, so an unknown pluggable type from a newer
+ * build (#3289) still gets a square.
+ */
+export function getPortMarkerShape(type: string): PortMarkerShape {
+  return type.includes("-x-") ? "square" : "circle";
+}
+
+/**
+ * The most frequent interface type in the list, or undefined for an empty
+ * list. A tie goes to the type that appears first. The count chip (#3453)
+ * takes its marker shape and colour from it.
+ */
+export function getDominantInterfaceType(
+  types: readonly InterfaceType[],
+): InterfaceType | undefined {
+  const counts = new Map<InterfaceType, number>();
+  for (const type of types) {
+    counts.set(type, (counts.get(type) ?? 0) + 1);
+  }
+  let dominant: InterfaceType | undefined;
+  let highest = 0;
+  // Map iterates in insertion order, so only a strictly higher count replaces
+  // an earlier type.
+  for (const [type, count] of counts) {
+    if (count > highest) {
+      dominant = type;
+      highest = count;
+    }
+  }
+  return dominant;
+}
+
+/**
+ * Infer the default signal direction for an interface type (spike #1927).
+ * Used when an InterfaceTemplate (or PlacedPort) does not set `direction`
+ * explicitly:
+ * - Management-only interfaces default to "input".
+ * - Console and AV control-serial types (rs-232, rs-422) default to "input".
+ * - All other AV types (XLR, HDMI, SDI, ...) have no default: direction must
+ *   be set explicitly on the device type.
+ * - Everything else (network, power, USB, etc.) defaults to "bidirectional".
+ *
+ * @param type - Interface type string
+ * @param mgmtOnly - Whether the interface is management-only
+ * @returns The inferred direction, or undefined if none should be assumed
+ */
+export function inferDirection(
+  type: string,
+  mgmtOnly?: boolean,
+): PortDirection | undefined {
+  if (mgmtOnly) {
+    return "input";
+  }
+  if (INPUT_DEFAULT_TYPES.has(type)) {
+    return "input";
+  }
+  if (AV_INTERFACE_TYPES.has(type)) {
+    return undefined;
+  }
+  return "bidirectional";
+}
+
+/** Connector gender for display. Computed only, never stored (spike #1927). */
+export type ConnectorGender = "male" | "female";
+
+/**
+ * Derive the connector gender for a port from its type and resolved
+ * direction, for connectors with a strong convention (spike #1927,
+ * Finding 6):
+ * - XLR-3 follows AES14 (signal flows out of male pins) so an output port is
+ *   male and an input port is female; XLR-5 follows the same convention.
+ *   Without a resolved in/out direction the gender is not derivable.
+ * - Speakon chassis connectors are male regardless of direction (the mating
+ *   cable end is female); a port models the chassis side.
+ * - dmx-xlr is deliberately not derived: DMX512 (ANSI E1.11) reverses the
+ *   AES14 convention (transmitters are female), so the XLR rule would
+ *   mislead here.
+ * Ambiguous connectors (TRS, TS, RCA, ...) return undefined.
+ */
+export function deriveGender(
+  type: string,
+  direction?: PortDirection,
+): ConnectorGender | undefined {
+  switch (type) {
+    case "xlr-3":
+    case "xlr-5":
+      if (direction === "output") return "male";
+      if (direction === "input") return "female";
+      return undefined;
+    case "speakon":
+      return "male";
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Human-readable signal names, one per SignalType value. Shared source for
+ * every surface that labels signals, so a label change lands everywhere.
+ */
+export const SIGNAL_LABELS: Record<SignalType, string> = {
+  "analog-audio-mic": "Mic level",
+  "analog-audio-line": "Line level",
+  "analog-audio-speaker": "Speaker level",
+  "digital-audio-aes3": "AES3",
+  "digital-audio-dante": "Dante",
+  "digital-audio-avb": "AVB",
+  "digital-video-hdmi": "HDMI",
+  "digital-video-sdi": "SDI",
+  "clock-word": "Word clock",
+  "control-midi": "MIDI",
+};
+
+/**
+ * Label for a signal type, falling back to the raw slug for forward
+ * compatibility if a new value is not yet in SIGNAL_LABELS.
+ */
+export function getSignalLabel(signal: SignalType): string {
+  return SIGNAL_LABELS[signal] ?? signal;
+}
+
+/**
+ * Infer the signal a connector carries from its type (and, for XLR, its
+ * direction: mic level into an input, line level out of anything else).
+ * Returns undefined when the connector implies no distinct signal to label:
+ * network types (ethernet is the connector, not a separate signal), connectors
+ * whose signal has no SignalTypeSchema value yet (DMX, ADAT), and genuinely
+ * ambiguous ones. Device authors set signal_type explicitly for those.
+ */
+export function inferSignalType(
+  type: InterfaceType,
+  direction?: PortDirection,
+): SignalType | undefined {
+  switch (type) {
+    case "xlr-3":
+      return direction === "input" ? "analog-audio-mic" : "analog-audio-line";
+    case "trs-1-4":
+    case "ts-1-4":
+    case "rca":
+    case "db25-audio":
+    case "phoenix":
+      return "analog-audio-line";
+    case "speakon":
+      return "analog-audio-speaker";
+    case "aes3":
+      return "digital-audio-aes3";
+    case "dante":
+      return "digital-audio-dante";
+    case "avb":
+      return "digital-audio-avb";
+    case "hdmi":
+      return "digital-video-hdmi";
+    case "sdi-bnc":
+      return "digital-video-sdi";
+    case "bnc":
+      return "clock-word";
+    case "midi-din":
+      return "control-midi";
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Instantiate ports from a DeviceType's interface templates
+ * Creates PlacedPort instances with stable UUIDs for each interface
+ *
+ * @param deviceType - The device type containing interface templates
+ * @returns Array of PlacedPort instances with unique IDs, indexes, and cached types
+ */
+export function instantiatePorts(deviceType: DeviceType): PlacedPort[] {
+  if (!deviceType.interfaces || deviceType.interfaces.length === 0) {
+    return [];
+  }
+
+  return deviceType.interfaces.map((iface, index) => ({
+    id: generateId(),
+    template_name: iface.name,
+    template_index: index,
+    type: iface.type,
+  }));
+}
+
+/** A normalled pair with its effective mode and where that mode came from. */
+export interface ResolvedPatchBayNormal extends PatchBayNormal {
+  source: "template" | "override";
+}
+
+/**
+ * Effective normalling for a placed patch bay (#1945): each pair the device
+ * type defines, with the placed device's override (keyed by the pair's top
+ * port name) applied. Overrides for pairs the device type does not define are
+ * ignored.
+ */
+export function resolvePatchBayNormals(
+  device: PlacedDevice,
+  deviceType: DeviceType,
+): ResolvedPatchBayNormal[] {
+  const overrides = device.patch_bay_normal_overrides ?? {};
+  return (deviceType.patch_bay_normals ?? []).map((pair) => {
+    const override = Object.hasOwn(overrides, pair.top)
+      ? overrides[pair.top]
+      : undefined;
+    return override
+      ? { ...pair, mode: override, source: "override" }
+      : { ...pair, source: "template" };
+  });
+}
+
+/**
+ * PlacedPort ids for both jacks of a normalled pair, matched by
+ * template_name. Undefined when either jack has no placed port (a device
+ * placed before its ports were instantiated, or a template added later).
+ */
+export function resolvePatchBayNormalPortIds(
+  device: PlacedDevice,
+  pair: PatchBayNormal,
+): { top: string; bottom: string } | undefined {
+  const ports = device.ports ?? [];
+  const top = ports.find((port) => port.template_name === pair.top);
+  const bottom = ports.find((port) => port.template_name === pair.bottom);
+  if (!top || !bottom) return undefined;
+  return { top: top.id, bottom: bottom.id };
+}
+
+/**
+ * Copy a placed device's ports for a duplicate (#3492): each port keeps its
+ * per-port overrides (label, direction, signal_type) under a fresh id, so no
+ * connection can reach the copy. Template ports the source lacks (a template
+ * added after placement) are instantiated, matched by template_index since
+ * interface names may repeat. Returns undefined only when there is neither a
+ * source port list nor a device type to instantiate from.
+ */
+export function clonePortsWithFreshIds(
+  sourcePorts: readonly PlacedPort[] | undefined,
+  deviceType?: DeviceType,
+): PlacedPort[] | undefined {
+  if (!sourcePorts && !deviceType) return undefined;
+  const cloned = (sourcePorts ?? []).map((p) => ({ ...p, id: generateId() }));
+  const present = new Set(cloned.map((p) => p.template_index));
+  const missing = deviceType
+    ? instantiatePorts(deviceType).filter((p) => !present.has(p.template_index))
+    : [];
+  return [...cloned, ...missing];
+}

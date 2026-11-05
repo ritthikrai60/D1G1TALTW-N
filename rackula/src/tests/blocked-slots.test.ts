@@ -1,0 +1,373 @@
+/**
+ * Blocked Slots Unit Tests
+ *
+ * Tests for the blocked-slots utility that calculates which U slots
+ * are blocked by half-depth devices on the opposite face.
+ */
+
+import { describe, it, expect } from "vitest";
+import {
+  getBlockedSlots,
+  isPositionBlocked,
+  wouldOverlapBlocked,
+} from "$lib/utils/blocked-slots";
+import type { BlockedSlot } from "$lib/utils/blocked-slots";
+import {
+  createTestRack,
+  createTestDeviceType,
+  createTestDevice,
+  createTestContainerType,
+  createTestContainerChild,
+} from "./factories";
+
+describe("getBlockedSlots", () => {
+  describe("unit conversion", () => {
+    it("converts internal position units to human U positions correctly", () => {
+      // Create a half-depth device at U8
+      // Note: createTestDevice accepts human units and converts internally
+      const rack = createTestRack({
+        height: 42,
+        devices: [
+          createTestDevice({
+            device_type: "half-depth-panel",
+            position: 8, // Human units - factory converts to internal
+            face: "front",
+          }),
+        ],
+      });
+
+      const deviceLibrary = [
+        createTestDeviceType({
+          slug: "half-depth-panel",
+          model: "Patch Panel",
+          u_height: 2,
+          is_full_depth: false, // Half-depth device
+        }),
+      ];
+
+      // Get blocked slots for rear view (should show front half-depth devices)
+      const blockedSlots = getBlockedSlots(rack, "rear", deviceLibrary);
+
+      // Should have one blocked range
+      expect(blockedSlots.length).toBe(1);
+
+      // The blocked range should be in human units (U8 to U9 for a 2U device)
+      // This tests that internal units (48) are converted back to human units (8)
+      const blocked = blockedSlots[0];
+      expect(blocked.bottom).toBe(8); // U8 in human units, not 48 in internal units
+      expect(blocked.top).toBe(9); // U8 + 2 - 1 = U9
+      // The range names the device that blocks it, for the hatch caption
+      expect(blocked.deviceName).toBe("Patch Panel");
+    });
+
+    it("handles 1U half-depth device at U1", () => {
+      const rack = createTestRack({
+        height: 42,
+        devices: [
+          createTestDevice({
+            device_type: "half-depth-1u",
+            position: 1, // U1
+            face: "rear",
+          }),
+        ],
+      });
+
+      const deviceLibrary = [
+        createTestDeviceType({
+          slug: "half-depth-1u",
+          model: null,
+          u_height: 1,
+          is_full_depth: false,
+        }),
+      ];
+
+      // Get blocked slots for front view
+      const blockedSlots = getBlockedSlots(rack, "front", deviceLibrary);
+
+      expect(blockedSlots.length).toBe(1);
+      expect(blockedSlots[0].bottom).toBe(1);
+      expect(blockedSlots[0].top).toBe(1);
+      // No custom name and no model: the slug is the last fallback
+      expect(blockedSlots[0].deviceName).toBe("half-depth-1u");
+    });
+
+    it("handles multiple half-depth devices", () => {
+      const rack = createTestRack({
+        height: 42,
+        devices: [
+          createTestDevice({
+            device_type: "half-depth-panel",
+            position: 5, // U5
+            face: "front",
+          }),
+          createTestDevice({
+            device_type: "half-depth-panel",
+            position: 20, // U20
+            face: "front",
+          }),
+        ],
+      });
+
+      const deviceLibrary = [
+        createTestDeviceType({
+          slug: "half-depth-panel",
+          u_height: 2,
+          is_full_depth: false,
+        }),
+      ];
+
+      const blockedSlots = getBlockedSlots(rack, "rear", deviceLibrary);
+
+      expect(blockedSlots.length).toBe(2);
+      // First device at U5-U6
+      expect(blockedSlots[0].bottom).toBe(5);
+      expect(blockedSlots[0].top).toBe(6);
+      // Second device at U20-U21
+      expect(blockedSlots[1].bottom).toBe(20);
+      expect(blockedSlots[1].top).toBe(21);
+    });
+  });
+
+  describe("deviceName", () => {
+    it("uses the placed device's custom name, falling back to the type name", () => {
+      const rack = createTestRack({
+        height: 42,
+        devices: [
+          createTestDevice({
+            device_type: "half-depth-panel",
+            name: "Core Patch A",
+            position: 5,
+            face: "front",
+          }),
+          createTestDevice({
+            device_type: "half-depth-panel",
+            position: 20,
+            face: "front",
+          }),
+          createTestDevice({
+            device_type: "half-depth-panel",
+            name: "   ",
+            position: 30,
+            face: "front",
+          }),
+        ],
+      });
+
+      const deviceLibrary = [
+        createTestDeviceType({
+          slug: "half-depth-panel",
+          model: "Patch Panel",
+          u_height: 2,
+          is_full_depth: false,
+        }),
+      ];
+
+      const names = getBlockedSlots(rack, "rear", deviceLibrary).map(
+        (slot) => slot.deviceName,
+      );
+
+      // A blank custom name is not a name: it falls back like an unset one.
+      expect(names).toEqual(["Core Patch A", "Patch Panel", "Patch Panel"]);
+    });
+
+    it("falls back to the slug when the type's model is blank", () => {
+      const rack = createTestRack({
+        height: 42,
+        devices: [
+          createTestDevice({
+            device_type: "blank-model-panel",
+            position: 5,
+            face: "front",
+          }),
+        ],
+      });
+
+      const deviceLibrary = [
+        createTestDeviceType({
+          slug: "blank-model-panel",
+          model: "   ",
+          u_height: 1,
+          is_full_depth: false,
+        }),
+      ];
+
+      const [slot] = getBlockedSlots(rack, "rear", deviceLibrary);
+
+      expect(slot.deviceName).toBe("blank-model-panel");
+    });
+  });
+
+  describe("filtering", () => {
+    it("excludes full-depth devices", () => {
+      const rack = createTestRack({
+        height: 42,
+        devices: [
+          createTestDevice({
+            device_type: "full-depth-server",
+            position: 10, // U10
+            face: "front",
+          }),
+        ],
+      });
+
+      const deviceLibrary = [
+        createTestDeviceType({
+          slug: "full-depth-server",
+          u_height: 2,
+          is_full_depth: true, // Full-depth, not half-depth
+        }),
+      ];
+
+      const blockedSlots = getBlockedSlots(rack, "rear", deviceLibrary);
+
+      // Full-depth devices are visible from both sides, no blocking
+      expect(blockedSlots.length).toBe(0);
+    });
+
+    it("excludes devices on the same face", () => {
+      const rack = createTestRack({
+        height: 42,
+        devices: [
+          createTestDevice({
+            device_type: "half-depth-panel",
+            position: 10, // U10
+            face: "front",
+          }),
+        ],
+      });
+
+      const deviceLibrary = [
+        createTestDeviceType({
+          slug: "half-depth-panel",
+          u_height: 2,
+          is_full_depth: false,
+        }),
+      ];
+
+      // Looking at front view - front devices are visible, not blocked
+      const blockedSlots = getBlockedSlots(rack, "front", deviceLibrary);
+
+      expect(blockedSlots.length).toBe(0);
+    });
+
+    it('excludes devices with face="both"', () => {
+      const rack = createTestRack({
+        height: 42,
+        devices: [
+          createTestDevice({
+            device_type: "both-face-device",
+            position: 10, // U10
+            face: "both",
+          }),
+        ],
+      });
+
+      const deviceLibrary = [
+        createTestDeviceType({
+          slug: "both-face-device",
+          u_height: 2,
+          is_full_depth: false,
+        }),
+      ];
+
+      // Both-face devices are visible from both sides
+      const blockedSlots = getBlockedSlots(rack, "rear", deviceLibrary);
+
+      expect(blockedSlots.length).toBe(0);
+    });
+  });
+
+  describe("carrier children", () => {
+    it("keeps hatching within the carrier's rail range for a half-depth child", () => {
+      const carrier = createTestDevice({
+        id: "carrier-1",
+        device_type: "half-depth-carrier",
+        position: 10,
+        face: "front",
+      });
+      // Child position is container-relative (0-indexed), not a rail U.
+      const child = createTestContainerChild({
+        container_id: "carrier-1",
+        slot_id: "slot-left",
+        device_type: "half-depth-module",
+        position: 0,
+        face: "front",
+      });
+      const rack = createTestRack({ height: 42, devices: [carrier, child] });
+
+      const deviceLibrary = [
+        createTestContainerType({
+          slug: "half-depth-carrier",
+          u_height: 2,
+          is_full_depth: false,
+        }),
+        createTestDeviceType({
+          slug: "half-depth-module",
+          u_height: 1,
+          is_full_depth: false,
+        }),
+      ];
+
+      const blockedSlots = getBlockedSlots(rack, "rear", deviceLibrary);
+
+      // Only the carrier blocks, across its own rail range.
+      expect(blockedSlots).toEqual([
+        { bottom: 10, top: 11, deviceName: "Test Container" },
+      ]);
+    });
+  });
+});
+
+// These pin the edge-inclusive overlap semantics after #2670 routed the checks
+// through doRangesOverlap. A device touching a blocked range edge counts as
+// overlapping (the whole-U invariant depends on it); a device strictly adjacent
+// does not.
+describe("isPositionBlocked", () => {
+  const blocked: BlockedSlot[] = [
+    { bottom: 5, top: 9, deviceName: "Patch Panel" },
+  ];
+
+  it("treats the range edges as blocked (inclusive)", () => {
+    expect(isPositionBlocked(blocked, 5)).toBe(true);
+    expect(isPositionBlocked(blocked, 9)).toBe(true);
+  });
+
+  it("treats positions inside the range as blocked", () => {
+    expect(isPositionBlocked(blocked, 7)).toBe(true);
+  });
+
+  it("treats positions outside the range as not blocked", () => {
+    expect(isPositionBlocked(blocked, 4)).toBe(false);
+    expect(isPositionBlocked(blocked, 10)).toBe(false);
+  });
+});
+
+describe("wouldOverlapBlocked", () => {
+  const blocked: BlockedSlot[] = [
+    { bottom: 5, top: 9, deviceName: "Patch Panel" },
+  ];
+
+  it("reports overlap when the device touches the bottom edge", () => {
+    // Device spans U4-U5: its top edge touches the blocked bottom (U5).
+    expect(wouldOverlapBlocked(blocked, 4, 2)).toBe(true);
+  });
+
+  it("reports overlap when the device touches the top edge", () => {
+    // Device spans U9-U10: its bottom edge touches the blocked top (U9).
+    expect(wouldOverlapBlocked(blocked, 9, 2)).toBe(true);
+  });
+
+  it("reports overlap when the device spans the entire range", () => {
+    expect(wouldOverlapBlocked(blocked, 3, 10)).toBe(true);
+  });
+
+  it("reports no overlap when the device is strictly above the range", () => {
+    // Device spans U10-U11: strictly above the blocked range (5-9).
+    expect(wouldOverlapBlocked(blocked, 10, 2)).toBe(false);
+  });
+
+  it("reports no overlap when the device is strictly below the range", () => {
+    // Device spans U3-U4: strictly below the blocked range (5-9).
+    expect(wouldOverlapBlocked(blocked, 3, 2)).toBe(false);
+  });
+});

@@ -1,0 +1,972 @@
+/**
+ * Collision Detection System
+ * Functions for device placement validation
+ *
+ * Container Hierarchy Rules:
+ * - Container devices collide at rack level (they occupy space)
+ * - Child devices (container_id set) are EXCLUDED from rack-level collision
+ * - Child devices collide ONLY within their container (same container_id)
+ * - Child position is 0-indexed relative to container bottom
+ */
+
+import type {
+  DeviceType,
+  DeviceFace,
+  PlacedDevice,
+  Rack,
+  Slot,
+} from "$lib/types";
+import { UNITS_PER_U, heightToInternalUnits } from "$lib/utils/position";
+import { findDeviceType } from "$lib/utils/device-lookup";
+import { layoutDebug } from "$lib/utils/debug";
+import { effectiveFace } from "./effective-face";
+import {
+  fitsSlotWidth,
+  isNarrowDevice,
+  orientDeviceType,
+  requiresCarrier,
+} from "./device-width";
+import {
+  buildCustomCarrierType,
+  carrierUHeight,
+  cellForDevice,
+  cellsOf,
+  isGeneratedCarrier,
+} from "./custom-carrier";
+import { fitsInRow, gapsFor } from "./slot-layout";
+import { slotsInGridOrder } from "./slot-geometry";
+
+/**
+ * Check if a placed device is a container child.
+ *
+ * A falsy container_id (undefined or "") means rack-level, matching the
+ * convention used across the write/migration paths (#2699, #2759). A prior-
+ * release rack-level device can serialize container_id as "", and a strict
+ * `!== undefined` check would misclassify it as a container child, wrongly
+ * excluding it from rack-level collision (#3076).
+ */
+export function isContainerChild(device: PlacedDevice): boolean {
+  return Boolean(device.container_id);
+}
+
+/**
+ * Range of U positions occupied by a device
+ */
+export interface URange {
+  bottom: number;
+  top: number;
+}
+
+/**
+ * Get the range occupied by a device at a given position in internal units.
+ * For rack-level devices, position is in internal units (6 = U1).
+ * For container children, use getContainerChildRange instead.
+ *
+ * @param position - Bottom position in internal units (e.g., 6 for U1)
+ * @param heightU - Device height in U (e.g., 2 for a 2U device)
+ * @returns Range of internal unit positions {bottom, top}
+ */
+export function getDeviceURange(position: number, heightU: number): URange {
+  const heightInternal = heightToInternalUnits(heightU);
+  return {
+    bottom: position,
+    top: position + heightInternal - 1,
+  };
+}
+
+/**
+ * Get the range occupied by a container child device.
+ * Container children use 0-indexed positions relative to the container,
+ * and do NOT use the internal unit system.
+ *
+ * @param position - 0-indexed position from container bottom
+ * @param heightU - Device height in U
+ * @returns Range of positions {bottom, top}
+ */
+function getContainerChildRange(position: number, heightU: number): URange {
+  return {
+    bottom: position,
+    top: position + heightU - 1,
+  };
+}
+
+/**
+ * Check if two U ranges overlap
+ * @param rangeA - First range
+ * @param rangeB - Second range
+ * @returns true if ranges overlap (including edge touch)
+ */
+export function doRangesOverlap(rangeA: URange, rangeB: URange): boolean {
+  // Ranges overlap if one starts before or at the other's end
+  // and ends after or at the other's start
+  return rangeA.bottom <= rangeB.top && rangeA.top >= rangeB.bottom;
+}
+
+/**
+ * Check if two device faces would collide
+ *
+ * Face is authoritative for collision detection:
+ * - 'both' always collides with everything
+ * - Same face always collides
+ * - Opposite explicit faces (front/rear) never collide
+ *
+ * @param faceA - First device face ('front', 'rear', or 'both')
+ * @param faceB - Second device face ('front', 'rear', or 'both')
+ * @returns true if devices on these faces would collide
+ */
+export function doFacesCollide(faceA: DeviceFace, faceB: DeviceFace): boolean {
+  // 'both' collides with everything
+  if (faceA === "both" || faceB === "both") {
+    return true;
+  }
+  // Same face always collides
+  if (faceA === faceB) {
+    return true;
+  }
+  // Opposite explicit faces never collide (face is authoritative)
+  return false;
+}
+
+/**
+ * Check if a device can be placed at a given position (rack-level placement)
+ *
+ * Container children (devices with container_id set) are excluded from rack-level
+ * collision detection. They exist in a separate collision space within their container.
+ *
+ * @param rack - The rack to check
+ * @param deviceLibrary - The device library
+ * @param deviceHeight - Height of device to place (in U)
+ * @param targetPosition - Target bottom position in internal units (e.g., 6 for U1)
+ * @param excludeIndex - Optional index in rack.devices to exclude (for move operations)
+ * @param targetFace - Optional face to place device on (default: 'front')
+ * @returns true if placement is valid
+ */
+export function canPlaceDevice(
+  rack: Rack,
+  deviceLibrary: DeviceType[],
+  deviceHeight: number,
+  targetPosition: number,
+  excludeIndex?: number,
+  targetFace: DeviceFace = "front",
+): boolean {
+  // Position must be >= UNITS_PER_U (U1 in internal units)
+  if (targetPosition < UNITS_PER_U) {
+    return false;
+  }
+
+  // Rail-mounted devices must register on a whole-U boundary (carrier-first,
+  // #2158). canPlaceDevice is the rack-level gate; container (sub-U) children
+  // go through canPlaceInContainer, so this only ever guards rail placements.
+  if (!isWholeURailPosition(targetPosition)) {
+    return false;
+  }
+
+  // Device must fit within rack height (convert rack height to internal units)
+  // A device at position P with height H occupies P to P + H*UNITS_PER_U - 1
+  // For a rack of height N, the max valid top is the top of UN = N*UNITS_PER_U + (UNITS_PER_U - 1)
+  const topPosition = targetPosition + heightToInternalUnits(deviceHeight) - 1;
+  const maxValidTop = rack.height * UNITS_PER_U + (UNITS_PER_U - 1);
+  if (topPosition > maxValidTop) {
+    return false;
+  }
+
+  // Check for collisions with existing devices
+  const newRange = getDeviceURange(targetPosition, deviceHeight);
+
+  for (let i = 0; i < rack.devices.length; i++) {
+    // Skip the excluded device (for move operations)
+    if (excludeIndex !== undefined && i === excludeIndex) {
+      continue;
+    }
+
+    const placedDevice = rack.devices[i]!;
+
+    // Skip container children - they don't participate in rack-level collision
+    if (isContainerChild(placedDevice)) {
+      continue;
+    }
+
+    const device = deviceLibrary.find(
+      (d) => d.slug === placedDevice.device_type,
+    );
+    if (device) {
+      const existingRange = getDeviceURange(
+        placedDevice.position,
+        device.u_height,
+      );
+      // Check U range overlap AND face collision.
+      // Use effectiveFace so full-depth devices collide on both faces.
+      if (
+        doRangesOverlap(newRange, existingRange) &&
+        doFacesCollide(targetFace, effectiveFace(placedDevice, device))
+      ) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Find devices that would collide with a new device at given position (rack-level)
+ *
+ * Container children are excluded from rack-level collision detection.
+ *
+ * @param rack - The rack to check
+ * @param deviceLibrary - The device library
+ * @param newDeviceHeight - Height of new device
+ * @param newPosition - Target position
+ * @param excludeIndex - Optional index in rack.devices to exclude (for move operations)
+ * @param targetFace - Optional face to place device on (default: 'front')
+ * @returns Array of colliding PlacedDevices (only rack-level devices, not container children)
+ */
+export function findCollisions(
+  rack: Rack,
+  deviceLibrary: DeviceType[],
+  newDeviceHeight: number,
+  newPosition: number,
+  excludeIndex?: number,
+  targetFace: DeviceFace = "front",
+): PlacedDevice[] {
+  const collisions: PlacedDevice[] = [];
+  const newRange = getDeviceURange(newPosition, newDeviceHeight);
+
+  rack.devices.forEach((placedDevice, index) => {
+    // Skip the excluded device (for move operations)
+    if (excludeIndex !== undefined && index === excludeIndex) {
+      return;
+    }
+
+    // Skip container children - they don't participate in rack-level collision
+    if (isContainerChild(placedDevice)) {
+      return;
+    }
+
+    const device = deviceLibrary.find(
+      (d) => d.slug === placedDevice.device_type,
+    );
+    if (device) {
+      const existingRange = getDeviceURange(
+        placedDevice.position,
+        device.u_height,
+      );
+      // Check U range overlap AND face collision.
+      // Use effectiveFace so full-depth devices collide on both faces.
+      if (
+        doRangesOverlap(newRange, existingRange) &&
+        doFacesCollide(targetFace, effectiveFace(placedDevice, device))
+      ) {
+        collisions.push(placedDevice);
+      }
+    }
+  });
+
+  return collisions;
+}
+
+/**
+ * Find all valid positions where a device of given height can be placed
+ * @param rack - The rack to check
+ * @param deviceLibrary - The device library
+ * @param deviceHeight - Height of device to place (in U)
+ * @param targetFace - Optional face to place device on (default: 'front')
+ * @returns Array of valid bottom positions in internal units, sorted ascending
+ */
+export function findValidDropPositions(
+  rack: Rack,
+  deviceLibrary: DeviceType[],
+  deviceHeight: number,
+  targetFace: DeviceFace = "front",
+): number[] {
+  const validPositions: number[] = [];
+
+  // Check each possible position in internal units
+  // Start at U1 (UNITS_PER_U) and go up to the max position where device fits
+  // Max valid top = rack.height * UNITS_PER_U + (UNITS_PER_U - 1)
+  // Max valid bottom = maxValidTop - deviceHeightInternal + 1
+  const deviceHeightInternal = heightToInternalUnits(deviceHeight);
+  const maxValidTop = rack.height * UNITS_PER_U + (UNITS_PER_U - 1);
+  const maxPosition = maxValidTop - deviceHeightInternal + 1;
+
+  for (let position = UNITS_PER_U; position <= maxPosition; position++) {
+    if (
+      canPlaceDevice(
+        rack,
+        deviceLibrary,
+        deviceHeight,
+        position,
+        undefined,
+        targetFace,
+      )
+    ) {
+      validPositions.push(position);
+    }
+  }
+
+  return validPositions;
+}
+
+/**
+ * Convert Y coordinate to internal unit position
+ * @param y - Y coordinate (0 at top of rack SVG)
+ * @param rackHeight - Total rack height in U
+ * @param uHeight - Height of one U in pixels
+ * @returns Position in internal units (e.g., 6 for U1)
+ */
+function yToInternalPosition(
+  y: number,
+  rackHeight: number,
+  uHeight: number,
+): number {
+  // SVG has y=0 at top, U=1 at bottom
+  // First get U position, then convert to internal units
+  const uPosition = rackHeight - Math.floor(y / uHeight);
+  return uPosition * UNITS_PER_U;
+}
+
+/**
+ * Snap to the nearest valid drop position
+ * @param rack - The rack to check
+ * @param deviceLibrary - The device library
+ * @param deviceHeight - Height of device to place (in U)
+ * @param targetY - Target Y coordinate in pixels
+ * @param uHeight - Height of one U in pixels
+ * @returns Nearest valid position in internal units, or null if no valid positions
+ */
+export function snapToNearestValidPosition(
+  rack: Rack,
+  deviceLibrary: DeviceType[],
+  deviceHeight: number,
+  targetY: number,
+  uHeight: number,
+): number | null {
+  const validPositions = findValidDropPositions(
+    rack,
+    deviceLibrary,
+    deviceHeight,
+  );
+
+  if (validPositions.length === 0) {
+    return null;
+  }
+
+  // Convert target Y to approximate internal unit position
+  const targetPosition = yToInternalPosition(targetY, rack.height, uHeight);
+
+  // Find the closest valid position
+  let closestPosition = validPositions[0]!;
+  let closestDistance = Math.abs(targetPosition - closestPosition);
+
+  for (const position of validPositions) {
+    const distance = Math.abs(targetPosition - position);
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestPosition = position;
+    }
+  }
+
+  return closestPosition;
+}
+
+/**
+ * Check if a device type fits within a slot's dimensions and category restrictions.
+ * Validates that the child device's width and height fit within the slot,
+ * and that the device category is allowed by the slot (if slot.accepts is defined).
+ *
+ * Width: a measured width_mm is compared to the slot's share of the rack
+ * opening. Otherwise slot_width 1 needs width_fraction >= 0.5 and slot_width 2
+ * (the default) needs 1.0.
+ *
+ * @param childType - The device type to place
+ * @param slot - The target slot
+ * @param rackWidth - Nominal width in inches of the rack holding the container
+ * @returns true if device fits and is allowed, false otherwise
+ */
+export function canPlaceInSlot(
+  childType: DeviceType,
+  slot: Slot,
+  rackWidth: number,
+): boolean {
+  // Check category is allowed (if slot.accepts is defined)
+  // Empty accepts array or undefined means all categories allowed
+  if (slot.accepts && slot.accepts.length > 0) {
+    if (!slot.accepts.includes(childType.category)) {
+      return false;
+    }
+  }
+
+  if (!fitsSlotWidth(childType, slot.width_fraction, rackWidth)) {
+    return false;
+  }
+
+  // Check height fits (child u_height <= slot height_units)
+  const slotHeight = slot.height_units ?? 1;
+  if (childType.u_height > slotHeight) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Container children that would not fit their cells at the given rack width.
+ * A measured width is fitted against the rack opening, so changing a rack's
+ * width or moving a carrier to another rack must re-check its children.
+ *
+ * @param devices - Placed devices; each child is matched to its container among them
+ * @param deviceTypes - Layout device types (the starter library is also searched)
+ * @param rackWidth - Nominal rack width in inches to check against
+ * @returns The children that would no longer fit
+ */
+export function findChildrenTooWideForRack(
+  devices: PlacedDevice[],
+  deviceTypes: DeviceType[],
+  rackWidth: number,
+): PlacedDevice[] {
+  return devices.filter((child) => {
+    if (!child.container_id || !child.slot_id) return false;
+    const container = devices.find((d) => d.id === child.container_id);
+    if (!container) return false;
+    const childType = findDeviceType(child.device_type, deviceTypes);
+    const slot = findDeviceType(
+      container.device_type,
+      deviceTypes,
+    )?.slots?.find((s) => s.id === child.slot_id);
+    if (!childType || !slot) return false;
+    return !fitsSlotWidth(
+      orientDeviceType(childType, child.rotation),
+      slot.width_fraction,
+      rackWidth,
+    );
+  });
+}
+
+/** How a device gets a carrier: a shipped slug, or a type to generate. */
+export interface CarrierPlan {
+  slug: string;
+  /** Present only for a generated carrier; import it before placing. */
+  type?: DeviceType;
+}
+
+/**
+ * Stable slugs of the synthesised carriers (defined in the starter library).
+ * The drag/drop layer and the import adapter both target these exact slugs.
+ */
+export const CARRIER_2COL_SLUG = "carrier-1u-2col";
+export const CARRIER_2X2_SLUG = "carrier-1u-2x2";
+export const CARRIER_2U_2COL_SLUG = "carrier-2u-2col";
+
+/**
+ * Whether an internal-unit position sits on a whole-U rail boundary. Rails
+ * register equipment at whole-U boundaries only, so a rail position is always a
+ * multiple of UNITS_PER_U (carrier-first, #2158). This mirrors the schema rule
+ * (LayoutSchema.superRefine) so the store rejects a fractional rail position at
+ * the place/move chokepoint rather than letting it through to an opaque
+ * save-time failure. Container (sub-U) children use 0-indexed positions and are
+ * checked through canPlaceInContainer, never this predicate.
+ *
+ * @param positionInternal - Rail position in internal units (e.g., 6 for U1)
+ * @returns true when the position is a whole-U boundary
+ */
+export function isWholeURailPosition(positionInternal: number): boolean {
+  return positionInternal % UNITS_PER_U === 0;
+}
+
+/**
+ * Pick the carrier a narrow device (half-width, or measured) must mount inside.
+ * A measured device gets a carrier generated around one cell cut to its own
+ * size, whatever its height: the carrier takes the whole U that holds the cell,
+ * so the rack opening is the only ceiling. Everything else takes a shipped
+ * carrier, whose cells are half-width: a sub-U device the 2x2 grid, a whole-U
+ * device a height-matched column carrier (1U or 2U).
+ *
+ * Returns null (no rail carrier) when:
+ * - the device is full-width (there is no full-width carrier to synthesise);
+ * - a measured width is wider than the rack opening;
+ * - the device is a chassis child (subdevice_role "child") - it mounts only
+ *   inside an existing parent bay, never on the rails;
+ * - the whole-U height has no matching carrier defined (e.g. a 3U half-width) -
+ *   returning a too-small carrier is exactly the bug this replaced (#2854).
+ *
+ * A null result for a device that `requiresCarrier` is true for is the honest
+ * "cannot rail-mount, needs an existing bay" signal the placement layers share
+ * (see `requiresChassisBay`).
+ *
+ * @param deviceType - The device being placed
+ * @param rackWidth - Nominal width in inches of the target rack
+ * @returns How to carry it, or null when no rail carrier applies
+ */
+export function synthesizeCarrierForDevice(
+  deviceType: DeviceType,
+  rackWidth: number,
+): CarrierPlan | null {
+  if (!isNarrowDevice(deviceType)) {
+    return null;
+  }
+
+  // Chassis children never get a rail carrier: they mount only inside an
+  // existing parent bay.
+  if (deviceType.subdevice_role === "child") {
+    return null;
+  }
+
+  // A measured device gets a cell cut to its own width, so the shipped half
+  // cell is no longer the ceiling. Only the whole opening can refuse it. The
+  // carrier is whole-U, so a height between whole U still gets one.
+  if (deviceType.width_mm !== undefined) {
+    const cell = cellForDevice(deviceType, rackWidth);
+    if (cell.widthFraction > 1) return null;
+    const type = buildCustomCarrierType(carrierUHeight([cell]), [cell], []);
+    return { slug: type.slug, type };
+  }
+
+  // Sub-1U gear uses the 2x2 grid carrier (its cells are half-U tall). A
+  // non-integer height at or above 1U has no matching carrier, so it falls
+  // through to null rather than a too-small carrier.
+  if (deviceType.u_height < 1) {
+    return { slug: CARRIER_2X2_SLUG };
+  }
+  if (!Number.isInteger(deviceType.u_height)) {
+    return null;
+  }
+
+  // Whole-U half-width gear uses a height-matched column carrier. Heights with
+  // no matching carrier return null rather than a too-small carrier.
+  if (deviceType.u_height === 1) return { slug: CARRIER_2COL_SLUG };
+  if (deviceType.u_height === 2) return { slug: CARRIER_2U_2COL_SLUG };
+  return null;
+}
+
+/**
+ * Rebuild a generated carrier around its children as they stand: each cell is
+ * cut to its child's footprint, and the carrier takes the whole U holding its
+ * tallest child. A cell with no child keeps its shape.
+ *
+ * @param rack - The rack holding the carrier
+ * @param carrier - The placed generated carrier
+ * @param carrierType - Its current type
+ * @param deviceTypes - Layout device types, for the rail check when it grows
+ * @param footprintOf - A child's footprint: its type turned as it stands, with
+ *   any change the caller is about to make already applied
+ * @returns The reshaped type, or null when the cells overflow the opening or
+ *   the carrier would grow into a device or past the rack top
+ */
+export function reshapeCarrier(
+  rack: Rack,
+  carrier: PlacedDevice,
+  carrierType: DeviceType,
+  deviceTypes: DeviceType[],
+  footprintOf: (child: PlacedDevice) => DeviceType | undefined,
+): DeviceType | null {
+  const cells = cellsOf(carrierType).map((cell, index) => {
+    const slotId = carrierType.slots?.[index]?.id;
+    const child = rack.devices.find(
+      (d) => d.container_id === carrier.id && d.slot_id === slotId,
+    );
+    const footprint = child && footprintOf(child);
+    return footprint ? cellForDevice(footprint, rack.width) : cell;
+  });
+  const type = buildCustomCarrierType(
+    carrierUHeight(cells),
+    cells,
+    gapsFor(carrierType),
+  );
+
+  if (!fitsInRow(type, rack.width, 0)) return null;
+  if (
+    type.u_height > carrierType.u_height &&
+    !canPlaceDevice(
+      rack,
+      deviceTypes,
+      type.u_height,
+      carrier.position,
+      rack.devices.indexOf(carrier),
+      carrier.face,
+    )
+  ) {
+    return null;
+  }
+  return type;
+}
+
+/** A placed generated carrier moving to the type reshaped around its children. */
+export interface CarrierReshape {
+  carrier: PlacedDevice;
+  from: DeviceType;
+  to: DeviceType;
+}
+
+/**
+ * Reshape every generated carrier in a rack for another rack width. Their
+ * cells are shares of the opening, so a wider rack would otherwise widen each
+ * cell, and the device drawn in it, past the device's measured width.
+ *
+ * @param rack - The rack whose width is changing
+ * @param deviceTypes - Layout device types
+ * @param width - The new nominal width in inches
+ * @returns The carriers whose type changes, or null when a carrier's children
+ *   no longer fit the opening side by side
+ */
+export function reshapeCarriersForWidth(
+  rack: Rack,
+  deviceTypes: DeviceType[],
+  width: Rack["width"],
+): CarrierReshape[] | null {
+  const resized = { ...rack, width };
+  const reshapes: CarrierReshape[] = [];
+  for (const carrier of rack.devices) {
+    if (carrier.container_id) continue;
+    const carrierType = findDeviceType(carrier.device_type, deviceTypes);
+    if (!carrierType || !isGeneratedCarrier(carrierType)) continue;
+    const reshaped = reshapeCarrier(
+      resized,
+      carrier,
+      carrierType,
+      deviceTypes,
+      (child) => {
+        const type = findDeviceType(child.device_type, deviceTypes);
+        return type && orientDeviceType(type, child.rotation);
+      },
+    );
+    if (!reshaped) return null;
+    if (reshaped.slug !== carrierType.slug) {
+      reshapes.push({ carrier, from: carrierType, to: reshaped });
+    }
+  }
+  return reshapes;
+}
+
+/**
+ * Whether a rack can take a new width: a measured child of a shipped carrier
+ * must still fit its cell, and the children of a generated carrier must still
+ * fit the opening side by side once the carrier is reshaped for it.
+ *
+ * @param rack - The rack whose width is changing
+ * @param deviceTypes - Layout device types
+ * @param width - The new nominal width in inches
+ */
+export function canChangeRackWidth(
+  rack: Rack,
+  deviceTypes: DeviceType[],
+  width: Rack["width"],
+): boolean {
+  // A generated carrier's cells are recut for the new width, so only shipped
+  // cells are held to their current share of the opening.
+  const inShippedCells = rack.devices.filter((device) => {
+    const container = rack.devices.find((d) => d.id === device.container_id);
+    const containerType =
+      container && findDeviceType(container.device_type, deviceTypes);
+    return !(containerType && isGeneratedCarrier(containerType));
+  });
+  return (
+    findChildrenTooWideForRack(inShippedCells, deviceTypes, width).length ===
+      0 && reshapeCarriersForWidth(rack, deviceTypes, width) !== null
+  );
+}
+
+/**
+ * Whether a device can never register on the rails, even inside a synthesised
+ * carrier, so it can be placed ONLY inside an existing chassis/carrier bay. It
+ * requires a carrier (narrow / sub-U / non-integer) but no carrier can be
+ * synthesised for it - a chassis child, a half-width device whose integer
+ * height has no matching carrier, or a measured device wider than the rack
+ * opening.
+ *
+ * This is the single predicate the preview (resolveDropTarget), the keyboard
+ * (validStartPositions / primeKeyboardPlacement), and the store (placeDeviceSmart
+ * via placeDeviceRecorded's requiresCarrier guard) share so bare-rails validity
+ * agrees across all three: an invalid preview, no announced rail slot, and a
+ * refused placement, all with the honest needs-a-bay message
+ * (chassisRequirementMessage).
+ *
+ * @param deviceType - The device being placed
+ * @param rackWidth - Nominal width in inches of the target rack
+ * @returns true when the device cannot rail-mount and needs an existing bay
+ */
+export function requiresChassisBay(
+  deviceType: DeviceType,
+  rackWidth: number,
+): boolean {
+  return (
+    requiresCarrier(deviceType) &&
+    synthesizeCarrierForDevice(deviceType, rackWidth) === null
+  );
+}
+
+/**
+ * The first free cell in a container, scanning slots in grid order (bottom
+ * row first, left to right; slotsInGridOrder), so the fill order does not
+ * depend on the order the slots are listed in. Each cell holds at most one
+ * child, so a slot with any child is considered occupied.
+ *
+ * @param containerType - The container DeviceType (with slots[])
+ * @param children - Placed children already in this container
+ * @returns The first free { slotId, position } or null when every cell is full
+ */
+export function findNextFreeChildPosition(
+  containerType: DeviceType,
+  children: PlacedDevice[],
+): { slotId: string; position: number } | null {
+  const occupied = new Set(
+    children.map((child) => child.slot_id).filter((id): id is string => !!id),
+  );
+
+  for (const slot of slotsInGridOrder(containerType.slots ?? [])) {
+    if (!occupied.has(slot.id)) {
+      return { slotId: slot.id, position: 0 };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Bring every container child back inside its container (#3456).
+ *
+ * The app only ever writes a child at position 0, but a hand-edited file or a
+ * crafted share link can carry any position. A child whose position plus its
+ * height (as it stands, turned or flat) runs past the container's u_height,
+ * the bound canPlaceInContainer enforces, is moved to position 0. A child
+ * whose container or type cannot be resolved is left as it is. Input is
+ * untrusted, so malformed entries pass through unchanged.
+ *
+ * @param devices - One rack's placed devices
+ * @param deviceTypes - The layout's device types
+ * @returns The devices (the same array when nothing moved) and whether any moved
+ */
+export function clampContainerChildPositions(
+  devices: PlacedDevice[],
+  deviceTypes: DeviceType[],
+): { devices: PlacedDevice[]; changed: boolean } {
+  const typeBySlug = new Map<string, DeviceType>();
+  for (const dt of deviceTypes) {
+    if (dt && typeof dt.slug === "string") typeBySlug.set(dt.slug, dt);
+  }
+  const deviceById = new Map<string, PlacedDevice>();
+  for (const d of devices) {
+    if (d && typeof d === "object") deviceById.set(d.id, d);
+  }
+
+  let changed = false;
+  const result = devices.map((d) => {
+    if (!d || typeof d !== "object" || !d.container_id) return d;
+    const container = deviceById.get(d.container_id);
+    const containerType = container && typeBySlug.get(container.device_type);
+    const found = typeBySlug.get(d.device_type);
+    if (!containerType || !found) return d;
+    const childType = orientDeviceType(found, d.rotation);
+    if (d.position + childType.u_height <= containerType.u_height) return d;
+    layoutDebug.state(
+      "moved %s in slot %s to position 0: position %d is outside its container",
+      d.name ?? d.id,
+      d.slot_id,
+      d.position,
+    );
+    changed = true;
+    return { ...d, position: 0 };
+  });
+
+  return changed ? { devices: result, changed } : { devices, changed };
+}
+
+/**
+ * The next cell a contained child can move to within its own carrier, scanning
+ * forward in grid order (slotsInGridOrder) from the child's current slot and
+ * wrapping around. Skips cells the
+ * child does not fit (width/height/category) and cells already taken by a
+ * sibling. Returns null when no other reachable cell exists, so the caller can
+ * hide the control rather than run a no-op.
+ *
+ * The child stays inside the same carrier (container_id is unchanged): this is
+ * a cell shuffle, never an eject, so the contained-device guard (#2146) is
+ * honoured by construction. Each cell holds one child, so position is always 0.
+ *
+ * @param containerType - The carrier DeviceType (with slots[])
+ * @param childType - The DeviceType of the contained child
+ * @param currentSlotId - The slot the child currently occupies
+ * @param siblings - Other children already in this carrier (excluding the child)
+ * @param rackWidth - Nominal width in inches of the rack holding the carrier
+ * @returns The next free, fitting { slotId } or null when none is reachable
+ */
+export function findNextSlotForChild(
+  containerType: DeviceType,
+  childType: DeviceType,
+  currentSlotId: string,
+  siblings: PlacedDevice[],
+  rackWidth: number,
+): { slotId: string } | null {
+  const slots = slotsInGridOrder(containerType.slots ?? []);
+  const currentIndex = slots.findIndex((s) => s.id === currentSlotId);
+  if (currentIndex === -1) return null;
+
+  const occupied = new Set(
+    siblings.map((s) => s.slot_id).filter((id): id is string => !!id),
+  );
+
+  // Scan forward from the slot after the current one, wrapping around. The
+  // current slot is excluded (it is the cell the child already sits in).
+  for (let offset = 1; offset < slots.length; offset++) {
+    const slot = slots[(currentIndex + offset) % slots.length]!;
+    if (occupied.has(slot.id)) continue;
+    if (!canPlaceInSlot(childType, slot, rackWidth)) continue;
+    return { slotId: slot.id };
+  }
+
+  return null;
+}
+
+/** A direction to move a contained child between the cells of its carrier. */
+export type CellDirection = "up" | "down" | "left" | "right";
+
+/**
+ * The nearest free cell a contained child can move to in one direction within
+ * its own carrier (#2295). Rows count from the bottom (row 0), so "up" is a
+ * higher row in the same column and "right" a higher column in the same row.
+ * Occupied cells and cells the child does not fit are leapfrogged, like the
+ * rack-level nudge. Never wraps and never leaves the carrier.
+ *
+ * @param containerType - The carrier DeviceType (with slots[])
+ * @param childType - The DeviceType of the contained child
+ * @param currentSlotId - The slot the child currently occupies
+ * @param siblings - Other children already in this carrier (excluding the child)
+ * @param direction - Which way to move
+ * @param rackWidth - Nominal width in inches of the rack holding the carrier
+ * @returns The target { slotId } or null when no free cell lies that way
+ */
+export function findAdjacentSlotForChild(
+  containerType: DeviceType,
+  childType: DeviceType,
+  currentSlotId: string,
+  siblings: PlacedDevice[],
+  direction: CellDirection,
+  rackWidth: number,
+): { slotId: string } | null {
+  const slots = containerType.slots ?? [];
+  const current = slots.find((s) => s.id === currentSlotId);
+  if (!current) return null;
+
+  const vertical = direction === "up" || direction === "down";
+  const step = direction === "up" || direction === "right" ? 1 : -1;
+  const occupied = new Set(
+    siblings.map((s) => s.slot_id).filter((id): id is string => !!id),
+  );
+
+  // Cells in the same column (vertical) or row (horizontal) that lie in the
+  // requested direction, nearest first.
+  const candidates = slots
+    .filter((slot) =>
+      vertical
+        ? slot.position.col === current.position.col &&
+          (slot.position.row - current.position.row) * step > 0
+        : slot.position.row === current.position.row &&
+          (slot.position.col - current.position.col) * step > 0,
+    )
+    .sort((a, b) =>
+      vertical
+        ? (a.position.row - b.position.row) * step
+        : (a.position.col - b.position.col) * step,
+    );
+
+  const target = candidates.find(
+    (slot) =>
+      !occupied.has(slot.id) && canPlaceInSlot(childType, slot, rackWidth),
+  );
+  return target ? { slotId: target.id } : null;
+}
+
+/**
+ * Check if a device can be placed inside a container at a specific slot and position
+ *
+ * Container children:
+ * - Position is 0-indexed relative to container bottom
+ * - Must fit within container height
+ * - Only collide with siblings in the same container AND same slot
+ * - Inherit face from parent container
+ *
+ * @param rack - The rack containing the container
+ * @param deviceLibrary - The layout's device types; sibling types are resolved
+ *   through the global lookup path (layout, starter pack, brand packs)
+ * @param container - The parent container PlacedDevice
+ * @param containerType - The DeviceType of the container
+ * @param childType - The DeviceType of the child device to place
+ * @param targetSlotId - The slot ID within the container
+ * @param targetPosition - Target position (0-indexed from container bottom)
+ * @param excludeDeviceId - Optional device ID to exclude (for move operations)
+ * @returns true if placement is valid
+ */
+export function canPlaceInContainer(
+  rack: Rack,
+  deviceLibrary: DeviceType[],
+  container: PlacedDevice,
+  containerType: DeviceType,
+  childType: DeviceType,
+  targetSlotId: string,
+  targetPosition: number,
+  excludeDeviceId?: string,
+): boolean {
+  // Position must be >= 0 (0-indexed within container)
+  if (targetPosition < 0) {
+    return false;
+  }
+
+  // Child device must fit within container height
+  const topPosition = targetPosition + childType.u_height - 1;
+  if (topPosition >= containerType.u_height) {
+    return false;
+  }
+
+  // Validate target slot exists and check dimension fit
+  const targetSlot = containerType.slots?.find((s) => s.id === targetSlotId);
+  if (!targetSlot) {
+    return false;
+  }
+
+  // Check if child device dimensions fit within the slot
+  if (!canPlaceInSlot(childType, targetSlot, rack.width)) {
+    return false;
+  }
+
+  // Find all sibling devices in the same container and slot
+  // Container children use 0-indexed positions, not internal units
+  const newRange = getContainerChildRange(targetPosition, childType.u_height);
+
+  for (const device of rack.devices) {
+    // Only check devices in the same container
+    if (device.container_id !== container.id) {
+      continue;
+    }
+
+    // Skip the device being moved
+    if (excludeDeviceId !== undefined && device.id === excludeDeviceId) {
+      continue;
+    }
+
+    // Only check devices in the same slot
+    if (device.slot_id !== targetSlotId) {
+      continue;
+    }
+
+    // Get the sibling's device type for height. Resolve through the global
+    // lookup path so siblings whose types live only in the starter pack or
+    // brand packs (for example a loaded layout without embedded types) are
+    // still checked. Fail closed if the type cannot be resolved at all.
+    const siblingType = findDeviceType(device.device_type, deviceLibrary);
+    if (!siblingType) {
+      return false;
+    }
+
+    // Container children use 0-indexed positions, not internal units
+    const existingRange = getContainerChildRange(
+      device.position,
+      siblingType.u_height,
+    );
+
+    // Check for U range overlap within the slot
+    if (doRangesOverlap(newRange, existingRange)) {
+      return false;
+    }
+  }
+
+  return true;
+}

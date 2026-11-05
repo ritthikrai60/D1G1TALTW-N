@@ -1,0 +1,988 @@
+/**
+ * NetBox Device Import Utilities
+ * Parses NetBox devicetype-library YAML format and converts to Rackula DeviceType
+ */
+
+import type {
+  DeviceType,
+  DeviceCategory,
+  Airflow,
+  RackWidth,
+  InterfaceTemplate,
+  Slot,
+} from "$lib/types";
+import { CATEGORY_COLOURS } from "$lib/types/constants";
+import { findStarterDevice } from "$lib/data/starterLibrary";
+import {
+  DeviceBaySchema,
+  DeviceTypeSchema,
+  InterfaceTemplateSchema,
+  InventoryItemSchema,
+  PoEModeSchema,
+  PoETypeSchema,
+  PowerOutletSchema,
+  PowerPortSchema,
+  SubdeviceRoleSchema,
+  TolerantInterfaceTypeSchema,
+  WeightUnitSchema,
+} from "$lib/schemas";
+import { z } from "$lib/zod";
+import { parseYaml } from "./yaml";
+import { isKnownInterfaceType } from "./port-utils";
+import { ensureUniqueSlug, generateDeviceSlug, slugify } from "./slug";
+import { uniqueNames } from "./netbox-export";
+
+/** SlotSchema's maximum slot name length. */
+const SLOT_NAME_MAX = 100;
+
+const FeedLegSchema = PowerOutletSchema.shape.feed_leg;
+
+/**
+ * NetBox device type YAML structure
+ * Based on https://github.com/netbox-community/devicetype-library
+ */
+export interface NetBoxDeviceType {
+  manufacturer: string;
+  model: string;
+  slug: string;
+  u_height?: number;
+  is_full_depth?: boolean;
+  part_number?: string;
+  airflow?: string;
+  front_image?: boolean;
+  rear_image?: boolean;
+  weight?: number;
+  weight_unit?: string;
+  subdevice_role?: string;
+  interfaces?: NetBoxInterface[];
+  // devicetype-library writes every other component list with a hyphenated
+  // key. Read them through readComponentList, never directly.
+  "console-ports"?: NetBoxConsolePort[];
+  "console-server-ports"?: NetBoxConsolePort[];
+  "power-ports"?: NetBoxPowerPort[];
+  "power-outlets"?: NetBoxPowerOutlet[];
+  "device-bays"?: NetBoxDeviceBay[];
+  "module-bays"?: NetBoxModuleBay[];
+  "inventory-items"?: NetBoxInventoryItem[];
+  "front-ports"?: NetBoxPassThroughPort[];
+  "rear-ports"?: NetBoxPassThroughPort[];
+  // Underscore spellings, accepted as a fallback for files already in
+  // circulation.
+  console_ports?: NetBoxConsolePort[];
+  console_server_ports?: NetBoxConsolePort[];
+  power_ports?: NetBoxPowerPort[];
+  power_outlets?: NetBoxPowerOutlet[];
+  device_bays?: NetBoxDeviceBay[];
+  module_bays?: NetBoxModuleBay[];
+  inventory_items?: NetBoxInventoryItem[];
+  front_ports?: NetBoxPassThroughPort[];
+  rear_ports?: NetBoxPassThroughPort[];
+  comments?: string;
+}
+
+export interface NetBoxInterface {
+  name: string;
+  type: string;
+  mgmt_only?: boolean;
+  label?: string;
+  poe_mode?: string;
+  poe_type?: string;
+}
+
+export interface NetBoxConsolePort {
+  name: string;
+  type?: string;
+  label?: string;
+}
+
+// NetBox's device type YAML export writes unset component fields as null, so
+// the mapped optional fields below allow null.
+export interface NetBoxPowerPort {
+  name: string;
+  type?: string | null;
+  maximum_draw?: number | null;
+  allocated_draw?: number | null;
+}
+
+export interface NetBoxPowerOutlet {
+  name: string;
+  type?: string | null;
+  power_port?: string | null;
+  feed_leg?: string | null;
+}
+
+export interface NetBoxDeviceBay {
+  name: string;
+  label?: string;
+}
+
+export interface NetBoxModuleBay {
+  name: string;
+  label?: string;
+  position?: string;
+}
+
+export interface NetBoxInventoryItem {
+  name: string;
+  label?: string;
+  manufacturer?: string | null;
+  part_id?: string | null;
+}
+
+/**
+ * Front or rear pass-through port template (`front-ports`, `rear-ports`).
+ * Rackula does not import these yet; they are counted for a warning.
+ */
+export interface NetBoxPassThroughPort {
+  name: string;
+  type?: string;
+  label?: string;
+}
+
+/**
+ * Underscore fallback for each hyphenated devicetype-library component key.
+ */
+const COMPONENT_LIST_FALLBACK_KEYS = {
+  "console-ports": "console_ports",
+  "console-server-ports": "console_server_ports",
+  "power-ports": "power_ports",
+  "power-outlets": "power_outlets",
+  "device-bays": "device_bays",
+  "module-bays": "module_bays",
+  "inventory-items": "inventory_items",
+  "front-ports": "front_ports",
+  "rear-ports": "rear_ports",
+} as const satisfies Record<string, keyof NetBoxDeviceType>;
+
+type ComponentListKey = keyof typeof COMPONENT_LIST_FALLBACK_KEYS;
+
+/**
+ * Read a component list by its hyphenated devicetype-library key, falling
+ * back to the underscore spelling. When both hold a list the hyphenated one
+ * wins. A value that is not a list, and list items that are not mappings, are
+ * skipped. Pass `warnings` to record each of these cases.
+ */
+function readComponentList<K extends ComponentListKey>(
+  netbox: NetBoxDeviceType,
+  key: K,
+  warnings?: string[],
+): NonNullable<NetBoxDeviceType[K]> | undefined {
+  const fallbackKey = COMPONENT_LIST_FALLBACK_KEYS[key];
+
+  let list: unknown[] | undefined;
+  let listKey: string = key;
+  for (const candidate of [key, fallbackKey]) {
+    const value: unknown = netbox[candidate];
+    if (value == null) continue;
+    if (!Array.isArray(value)) {
+      warnings?.push(`Ignored "${candidate}": expected a list`);
+    } else if (list) {
+      warnings?.push(
+        `Both "${key}" and "${fallbackKey}" are present, using "${key}"`,
+      );
+    } else {
+      list = value;
+      listKey = candidate;
+    }
+  }
+  if (!list) return undefined;
+
+  return keepMappings(list, listKey, warnings) as NonNullable<
+    NetBoxDeviceType[K]
+  >;
+}
+
+/**
+ * Keep the list items that are mappings, warning once about any others.
+ */
+function keepMappings(
+  list: unknown[],
+  listKey: string,
+  warnings?: string[],
+): object[] {
+  const items = list.filter(
+    (item): item is object =>
+      typeof item === "object" && item !== null && !Array.isArray(item),
+  );
+  if (items.length < list.length) {
+    warnings?.push(
+      `Ignored ${list.length - items.length} invalid item(s) in "${listKey}"`,
+    );
+  }
+  return items;
+}
+
+/**
+ * Keep the mapped component items that pass their Rackula schema. An invalid
+ * optional field is dropped with a warning and the item kept; an item whose
+ * required field is invalid is skipped with a warning. Either way one
+ * malformed entry does not fail the whole import at the DeviceTypeSchema gate.
+ */
+function keepValidComponents<T extends { name: unknown }>(
+  items: T[],
+  schema: z.ZodObject,
+  noun: string,
+  warnings?: string[],
+): T[] {
+  const kept: T[] = [];
+  for (const original of items) {
+    const item: Record<string, unknown> = { ...original };
+    const label =
+      typeof item.name === "string" && item.name ? ` "${item.name}"` : "";
+    for (;;) {
+      const parsed = schema.safeParse(item);
+      if (parsed.success) {
+        kept.push(item as T);
+        break;
+      }
+      const first = parsed.error.issues[0];
+      const key = first?.path[0];
+      const field = first?.path.join(".") || "item";
+      const message = first?.message ?? "validation failed";
+      const optional =
+        typeof key === "string" &&
+        item[key] !== undefined &&
+        schema.shape[key]?.safeParse(undefined).success === true;
+      if (!optional) {
+        warnings?.push(`Skipped ${noun}${label}: ${field}: ${message}`);
+        break;
+      }
+      delete item[key];
+      warnings?.push(`Dropped ${noun}${label} ${field}: ${message}`);
+    }
+  }
+  return kept;
+}
+
+/**
+ * Minimal shape for component lists Rackula counts but does not import.
+ */
+const NamedComponentSchema = z.object({ name: z.string().min(1) });
+
+/**
+ * Read a component list Rackula does not import, keeping only named items so
+ * a malformed entry neither drives category inference nor inflates the
+ * "not supported" count.
+ */
+function readNamedComponents(
+  netbox: NetBoxDeviceType,
+  key: ComponentListKey,
+  noun: string,
+  warnings?: string[],
+): { name: unknown }[] {
+  return keepValidComponents(
+    (readComponentList(netbox, key, warnings) ?? []) as { name: unknown }[],
+    NamedComponentSchema,
+    noun,
+    warnings,
+  );
+}
+
+/**
+ * Minimal shape an interface entry needs before it is mapped or used for
+ * category inference.
+ */
+const InterfaceEntrySchema = z.object({
+  name: z.string().min(1),
+  type: z.string(),
+});
+
+/**
+ * Read `interfaces`, skipping a value that is not a list, items that are not
+ * mappings, and entries without a name or a string type. Pass `warnings` to
+ * record each of these cases.
+ */
+function readInterfaces(
+  netbox: NetBoxDeviceType,
+  warnings?: string[],
+): NetBoxInterface[] {
+  const value: unknown = netbox.interfaces;
+  if (value == null) return [];
+  if (!Array.isArray(value)) {
+    warnings?.push('Ignored "interfaces": expected a list');
+    return [];
+  }
+  return keepValidComponents(
+    keepMappings(value, "interfaces", warnings) as NetBoxInterface[],
+    InterfaceEntrySchema,
+    "interface",
+    warnings,
+  );
+}
+
+/**
+ * Optional top-level scalars. NetBox's device type export writes an unset one
+ * as null, which counts as absent.
+ */
+const OPTIONAL_SCALAR_KEYS = [
+  "u_height",
+  "is_full_depth",
+  "part_number",
+  "airflow",
+  "front_image",
+  "rear_image",
+  "weight",
+  "weight_unit",
+  "subdevice_role",
+  "comments",
+] as const satisfies (keyof NetBoxDeviceType)[];
+
+/**
+ * Result of parsing NetBox YAML
+ */
+export interface NetBoxParseResult {
+  success: true;
+  data: NetBoxDeviceType;
+}
+
+export interface NetBoxParseError {
+  success: false;
+  error: string;
+}
+
+export type NetBoxParseOutput = NetBoxParseResult | NetBoxParseError;
+
+/**
+ * Result of converting to Rackula DeviceType.
+ *
+ * `convertToDeviceType` returns either a success carrying the validated
+ * `DeviceType`, or a failure carrying a human-readable error. The failure
+ * branch never yields a `DeviceType`, so an out-of-range `u_height` or a
+ * non-conforming `slug` cannot enter the device library.
+ */
+export type ConvertResult =
+  { success: true; result: ImportResult } | { success: false; error: string };
+
+/**
+ * Successful conversion payload: the validated DeviceType plus the inferred
+ * category and any non-fatal warnings raised while mapping NetBox fields.
+ */
+export interface ImportResult {
+  deviceType: DeviceType;
+  inferredCategory: DeviceCategory;
+  warnings: string[];
+}
+
+/**
+ * Parse NetBox YAML string to structured data
+ */
+export async function parseNetBoxYaml(
+  yamlString: string,
+): Promise<NetBoxParseOutput> {
+  try {
+    const data = await parseYaml<NetBoxDeviceType>(yamlString);
+
+    // Validate required fields
+    if (!data || typeof data !== "object") {
+      return { success: false, error: "Invalid YAML: expected an object" };
+    }
+
+    if (!data.manufacturer) {
+      return { success: false, error: "Missing required field: manufacturer" };
+    }
+
+    if (!data.model) {
+      return { success: false, error: "Missing required field: model" };
+    }
+
+    if (!data.slug) {
+      return { success: false, error: "Missing required field: slug" };
+    }
+
+    return { success: true, data };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return { success: false, error: `YAML parse error: ${message}` };
+  }
+}
+
+/**
+ * Infer device category from manufacturer, model, and other hints
+ */
+export function inferCategory(netbox: NetBoxDeviceType): DeviceCategory {
+  const model = netbox.model.toLowerCase();
+  const manufacturer = netbox.manufacturer.toLowerCase();
+  const slug = netbox.slug.toLowerCase();
+  const combined = `${manufacturer} ${model} ${slug}`;
+
+  // Firewalls (check before network: firewalls also match network hints
+  // like "gateway", and should resolve to the more specific category)
+  if (
+    combined.includes("firewall") ||
+    combined.includes("fortigate") ||
+    combined.includes("pfsense") ||
+    combined.includes("opnsense") ||
+    combined.includes("palo alto") ||
+    combined.includes("firepower") ||
+    combined.includes("netgate") ||
+    // Cisco ASA, with or without separators (combined is already lowercased):
+    // "asa5506", "asa 5506", "asa-5506".
+    /\basa[\s-]*\d/.test(combined)
+  ) {
+    return "firewall";
+  }
+
+  // Network devices
+  if (
+    combined.includes("switch") ||
+    combined.includes("router") ||
+    combined.includes("gateway") ||
+    combined.includes("access point") ||
+    combined.includes("wap") ||
+    // Access point patterns - use word boundaries to avoid matching qnap, snap, etc.
+    /\bap[-\s]/.test(combined) ||
+    /-ap\b/.test(combined) ||
+    combined.includes("usw") ||
+    combined.includes("usg") ||
+    combined.includes("udm") ||
+    combined.includes("catalyst") ||
+    combined.includes("nexus") ||
+    combined.includes("aruba") ||
+    readInterfaces(netbox).some((i) => i.type.includes("base"))
+  ) {
+    return "network";
+  }
+
+  // Storage devices
+  if (
+    combined.includes("nas") ||
+    combined.includes("storage") ||
+    combined.includes("diskstation") ||
+    combined.includes("rackstation") ||
+    model.startsWith("ds") ||
+    model.startsWith("rs") ||
+    model.startsWith("ts-") ||
+    manufacturer.includes("qnap") ||
+    manufacturer.includes("synology") ||
+    combined.includes("truenas") ||
+    combined.includes("freenas")
+  ) {
+    return "storage";
+  }
+
+  // Power devices - UPS
+  if (
+    combined.includes("ups") ||
+    combined.includes("smart-ups") ||
+    combined.includes("back-ups") ||
+    combined.includes("uninterruptible")
+  ) {
+    return "power";
+  }
+
+  // Power devices - PDU
+  if (combined.includes("pdu") || combined.includes("power distribution")) {
+    return "power";
+  }
+
+  // Patch panels
+  if (combined.includes("patch panel") || combined.includes("patch-panel")) {
+    return "patch-panel";
+  }
+
+  // KVM/Console
+  if (
+    combined.includes("kvm") ||
+    combined.includes("console") ||
+    combined.includes("ip-kvm") ||
+    manufacturer.includes("raritan") ||
+    manufacturer.includes("aten") ||
+    manufacturer.includes("avocent") ||
+    combined.includes("dominion") ||
+    readNamedComponents(netbox, "console-server-ports", "console server port")
+      .length > 0
+  ) {
+    return "kvm";
+  }
+
+  // Servers
+  if (
+    combined.includes("server") ||
+    combined.includes("poweredge") ||
+    combined.includes("proliant") ||
+    combined.includes("thinkserver") ||
+    combined.includes("primergy") ||
+    combined.includes("thinksystem") ||
+    combined.includes("nvr") ||
+    combined.includes("supermicro") ||
+    manufacturer.includes("dell") ||
+    manufacturer.includes("hpe") ||
+    manufacturer.includes("hp") ||
+    manufacturer.includes("lenovo") ||
+    manufacturer.includes("supermicro")
+  ) {
+    return "server";
+  }
+
+  // AV/Media
+  if (
+    combined.includes("amplifier") ||
+    combined.includes("receiver") ||
+    combined.includes("video") ||
+    combined.includes("encoder") ||
+    combined.includes("decoder") ||
+    combined.includes("streaming") ||
+    combined.includes("blackmagic") ||
+    combined.includes("aja") ||
+    combined.includes("teradek")
+  ) {
+    return "av-media";
+  }
+
+  // Cooling
+  if (
+    combined.includes("fan") ||
+    combined.includes("cooling") ||
+    combined.includes("air") ||
+    netbox.airflow === "passive"
+  ) {
+    return "cooling";
+  }
+
+  // Shelves
+  if (
+    combined.includes("shelf") ||
+    combined.includes("tray") ||
+    combined.includes("cantilever")
+  ) {
+    return "shelf";
+  }
+
+  // Blank panels
+  if (combined.includes("blank") || combined.includes("filler")) {
+    return "blank";
+  }
+
+  // Cable management
+  if (
+    combined.includes("cable") ||
+    combined.includes("brush") ||
+    combined.includes("management")
+  ) {
+    return "cable-management";
+  }
+
+  // Default fallback
+  return "other";
+}
+
+/**
+ * Map NetBox airflow values to Rackula airflow type
+ */
+function mapAirflow(netboxAirflow: unknown): Airflow | undefined {
+  if (typeof netboxAirflow !== "string") return undefined;
+
+  const airflowMap: Record<string, Airflow> = {
+    passive: "passive",
+    "front-to-rear": "front-to-rear",
+    "rear-to-front": "rear-to-front",
+    "left-to-right": "left-to-right",
+    "right-to-left": "right-to-left",
+    "side-to-rear": "side-to-rear",
+    mixed: "mixed",
+  };
+
+  return airflowMap[netboxAirflow.toLowerCase()];
+}
+
+/**
+ * Map NetBox interface to Rackula InterfaceTemplate
+ */
+function mapInterface(
+  netbox: NetBoxInterface,
+  warnings: string[],
+): InterfaceTemplate {
+  // Keep an unknown type string unchanged (#3289); only a value the layout
+  // schema would refuse (empty, over-long, not a string) falls back to "other".
+  const typeResult = TolerantInterfaceTypeSchema.safeParse(netbox.type);
+  if (!typeResult.success) {
+    warnings.push(`Unknown interface type: ${netbox.type}, using "other"`);
+  } else if (!isKnownInterfaceType(typeResult.data)) {
+    warnings.push(
+      `Unknown interface type: ${typeResult.data}, shown as a generic port`,
+    );
+  }
+
+  const template: InterfaceTemplate = {
+    name: netbox.name,
+    type: typeResult.success ? typeResult.data : "other",
+    label: netbox.label ?? undefined,
+    mgmt_only: netbox.mgmt_only ?? undefined,
+  };
+
+  if (netbox.poe_mode) {
+    const poeModeResult = PoEModeSchema.safeParse(netbox.poe_mode);
+    if (poeModeResult.success) {
+      template.poe_mode = poeModeResult.data;
+    } else {
+      warnings.push(`Unknown poe_mode value: ${netbox.poe_mode}`);
+    }
+  }
+
+  if (netbox.poe_type) {
+    const poeTypeResult = PoETypeSchema.safeParse(netbox.poe_type);
+    if (poeTypeResult.success) {
+      template.poe_type = poeTypeResult.data;
+    } else {
+      warnings.push(`Unknown poe_type value: ${netbox.poe_type}`);
+    }
+  }
+
+  return template;
+}
+
+/**
+ * Container slots for a NetBox parent's device bays, one slot per bay named
+ * after it. When the slug matches a starter library container with the same
+ * number of slots, that container's slot geometry is reused, which is how a
+ * carrier exported by Rackula round-trips exactly. Otherwise the bays fill a
+ * grid of at most two columns from the bottom row up, with a warning. Two
+ * columns keep every slot at least half width, the narrowest device Rackula
+ * can place; an odd last bay spans the full width.
+ */
+function slotsForDeviceBays(
+  slug: string,
+  bays: { name: string }[],
+  uHeight: number,
+  warnings: string[],
+): Slot[] {
+  // SlotSchema caps slot names at 100 characters; device bay names are not.
+  // Shortening can make two names equal, so keep the slot names unique.
+  const slotNames = uniqueNames(
+    bays.map((bay) => bay.name),
+    SLOT_NAME_MAX,
+  );
+  const longNames = bays.filter((bay) => bay.name.length > SLOT_NAME_MAX);
+  if (longNames.length > 0) {
+    warnings.push(
+      `${longNames.length} device bay name(s) are longer than the ${SLOT_NAME_MAX} characters a slot name allows: shortened on the slot, kept in full on the device bay`,
+    );
+  }
+  const slotName = (i: number) => slotNames[i]!;
+
+  // A slug match means this is that starter container (typically a Rackula
+  // export coming back), so its slots are reused whole, including any
+  // `accepts` restriction such as blade-chassis-4u taking servers only.
+  const starterSlots = findStarterDevice(slug)?.slots;
+  if (starterSlots && starterSlots.length === bays.length) {
+    return starterSlots.map((slot, i) => ({ ...slot, name: slotName(i) }));
+  }
+
+  const columns = Math.min(bays.length, 2);
+  const rows = Math.ceil(bays.length / columns);
+  warnings.push(
+    `${bays.length} device bay(s) imported as slots in a ${rows} by ${columns} grid: the slot layout is approximate`,
+  );
+  return bays.map((_, i) => {
+    const spansRow = i === bays.length - 1 && bays.length % columns !== 0;
+    return {
+      id: `bay-${i + 1}`,
+      name: slotName(i),
+      position: { row: Math.floor(i / columns), col: i % columns },
+      width_fraction: spansRow ? 1 : 1 / columns,
+      height_units: uHeight / rows,
+    };
+  });
+}
+
+/**
+ * Convert NetBox device type to Rackula DeviceType
+ */
+export function convertToDeviceType(
+  input: NetBoxDeviceType,
+  options?: {
+    category?: DeviceCategory;
+    colour?: string;
+    rack_widths?: RackWidth[];
+    existingSlugs?: Iterable<string>;
+  },
+): ConvertResult {
+  const warnings: string[] = [];
+
+  const netbox = { ...input };
+  for (const key of OPTIONAL_SCALAR_KEYS) {
+    if (netbox[key] === null) delete netbox[key];
+  }
+
+  // Guard the identity fields before any string helper runs. A non-string
+  // scalar (e.g. `slug: 123` in the YAML) passes parseNetBoxYaml's truthiness
+  // check, so inferCategory/slugify would throw a TypeError before the schema
+  // could return a clean failure. Refuse it here with a readable message.
+  for (const field of ["manufacturer", "model", "slug"] as const) {
+    if (typeof netbox[field] !== "string") {
+      return {
+        success: false,
+        error: `Invalid device type: ${field} must be a string`,
+      };
+    }
+  }
+
+  // Infer category if not provided
+  const inferredCategory = inferCategory(netbox);
+  const category = options?.category ?? inferredCategory;
+
+  // Use provided colour or default for category
+  const colour = options?.colour ?? CATEGORY_COLOURS[category];
+
+  // Normalise the slug through the same helper the JSON import path uses so the
+  // stored slug always matches SLUG_PATTERN. NetBox slugs are already lowercase
+  // hyphenated by convention, but a hand-edited paste ("My Switch!") would
+  // otherwise fail LayoutSchema on the next reload and discard the autosave.
+  const normalisedSlug =
+    slugify(netbox.slug) ||
+    generateDeviceSlug(netbox.manufacturer, netbox.model);
+
+  // Suffix the slug if it collides with an existing device-type slug. Two
+  // imports can normalise to the same slug (an existing "weird-box" plus an
+  // imported "Weird Box"); a duplicate would make LayoutSchema reject the whole
+  // layout on the next reload and discard the autosave, the failure this guards.
+  const slug = ensureUniqueSlug(
+    normalisedSlug,
+    new Set(options?.existingSlugs ?? []),
+  );
+
+  // NetBox requires child device types to be 0U, which the schema refuses.
+  // Give the child a height it can load with and ask the user to match it
+  // to the bay it fits.
+  let uHeight = netbox.u_height ?? 1;
+  if (uHeight === 0 && netbox.subdevice_role === "child") {
+    uHeight = 1;
+    warnings.push(
+      "NetBox child types are 0U: imported as 1U, set the height and width to match the bay it fits",
+    );
+  }
+
+  // Build the device type
+  const deviceType: DeviceType = {
+    slug,
+    manufacturer: netbox.manufacturer,
+    model: netbox.model,
+    u_height: uHeight,
+    is_full_depth: netbox.is_full_depth ?? true,
+    colour,
+    category,
+  };
+
+  // Apply rack_widths if provided (NetBox doesn't have this field)
+  if (options?.rack_widths && options.rack_widths.length > 0) {
+    deviceType.rack_widths = options.rack_widths;
+  }
+
+  // Optional fields
+  if (netbox.part_number) {
+    deviceType.part_number = netbox.part_number;
+  }
+
+  if (netbox.airflow) {
+    const mappedAirflow = mapAirflow(netbox.airflow);
+    if (mappedAirflow) {
+      deviceType.airflow = mappedAirflow;
+    } else {
+      warnings.push(`Unknown airflow value: ${netbox.airflow}`);
+    }
+  }
+
+  if (netbox.front_image !== undefined) {
+    deviceType.front_image = netbox.front_image;
+  }
+
+  if (netbox.rear_image !== undefined) {
+    deviceType.rear_image = netbox.rear_image;
+  }
+
+  if (netbox.weight !== undefined) {
+    if (!netbox.weight_unit) {
+      deviceType.weight = netbox.weight;
+      deviceType.weight_unit = "kg";
+    } else {
+      const parsedUnit = WeightUnitSchema.safeParse(netbox.weight_unit);
+      if (parsedUnit.success) {
+        deviceType.weight = netbox.weight;
+        deviceType.weight_unit = parsedUnit.data;
+      } else {
+        warnings.push(`Unknown weight_unit value: ${netbox.weight_unit}`);
+      }
+    }
+  }
+
+  if (netbox.subdevice_role) {
+    const parsedRole = SubdeviceRoleSchema.safeParse(netbox.subdevice_role);
+    if (parsedRole.success) {
+      deviceType.subdevice_role = parsedRole.data;
+    } else {
+      warnings.push(`Unknown subdevice_role value: ${netbox.subdevice_role}`);
+    }
+  }
+
+  if (netbox.comments) {
+    deviceType.notes = netbox.comments;
+  }
+
+  // Map interfaces
+  const interfaces = keepValidComponents(
+    readInterfaces(netbox, warnings).map((i) => mapInterface(i, warnings)),
+    InterfaceTemplateSchema,
+    "interface",
+    warnings,
+  );
+  if (interfaces.length > 0) {
+    deviceType.interfaces = interfaces;
+  }
+
+  // Map power ports
+  const powerPorts = keepValidComponents(
+    (readComponentList(netbox, "power-ports", warnings) ?? []).map((p) => ({
+      name: p.name,
+      type: p.type ?? undefined,
+      maximum_draw: p.maximum_draw ?? undefined,
+      allocated_draw: p.allocated_draw ?? undefined,
+    })),
+    PowerPortSchema,
+    "power port",
+    warnings,
+  );
+  if (powerPorts.length > 0) {
+    deviceType.power_ports = powerPorts;
+  }
+
+  // Map power outlets
+  const powerOutlets = keepValidComponents(
+    (readComponentList(netbox, "power-outlets", warnings) ?? []).map((o) => {
+      const outlet: NonNullable<DeviceType["power_outlets"]>[number] = {
+        name: o.name,
+        type: o.type ?? undefined,
+        power_port: o.power_port ?? undefined,
+      };
+      if (o.feed_leg) {
+        const parsedFeedLeg = FeedLegSchema.safeParse(o.feed_leg);
+        if (parsedFeedLeg.success) {
+          outlet.feed_leg = parsedFeedLeg.data;
+        } else {
+          warnings.push(`Unknown feed_leg value: ${o.feed_leg}`);
+        }
+      }
+      return outlet;
+    }),
+    PowerOutletSchema,
+    "power outlet",
+    warnings,
+  );
+  if (powerOutlets.length > 0) {
+    deviceType.power_outlets = powerOutlets;
+  }
+
+  // Map device bays
+  const deviceBays = keepValidComponents(
+    (readComponentList(netbox, "device-bays", warnings) ?? []).map((b) => ({
+      name: b.name,
+    })),
+    DeviceBaySchema,
+    "device bay",
+    warnings,
+  );
+  if (deviceBays.length > 0) {
+    deviceType.device_bays = deviceBays;
+    // A NetBox parent with device bays is a Rackula container.
+    if (deviceType.subdevice_role === "parent") {
+      deviceType.slots = slotsForDeviceBays(
+        normalisedSlug,
+        deviceBays,
+        deviceType.u_height,
+        warnings,
+      );
+    }
+  }
+
+  // Map inventory items
+  const inventoryItems = keepValidComponents(
+    (readComponentList(netbox, "inventory-items", warnings) ?? []).map(
+      (item) => ({
+        name: item.name,
+        manufacturer: item.manufacturer ?? undefined,
+        part_id: item.part_id ?? undefined,
+      }),
+    ),
+    InventoryItemSchema,
+    "inventory item",
+    warnings,
+  );
+  if (inventoryItems.length > 0) {
+    deviceType.inventory_items = inventoryItems;
+  }
+
+  // Console ports have no Rackula representation yet. Note the gap in
+  // warnings rather than silently dropping the data.
+  const consolePortCount =
+    readNamedComponents(netbox, "console-ports", "console port", warnings)
+      .length +
+    readNamedComponents(
+      netbox,
+      "console-server-ports",
+      "console server port",
+      warnings,
+    ).length;
+  if (consolePortCount > 0) {
+    warnings.push(
+      `${consolePortCount} console port(s) are not yet supported by Rackula and were not imported`,
+    );
+  }
+
+  // Module bays and front/rear pass-through ports have no Rackula
+  // representation either.
+  const unsupportedLists = [
+    ["module-bays", "module bay"],
+    ["front-ports", "front port"],
+    ["rear-ports", "rear port"],
+  ] as const;
+  for (const [key, noun] of unsupportedLists) {
+    const count = readNamedComponents(netbox, key, noun, warnings).length;
+    if (count > 0) {
+      warnings.push(
+        `${count} ${noun}(s) are not yet supported by Rackula and were not imported`,
+      );
+    }
+  }
+
+  // Validate the built DeviceType against the schema before it can enter the
+  // library. NetBox values pass through as-is, so an out-of-range u_height
+  // (2.7, 0, -1, 99999) or a slug that could not be normalised must be refused
+  // here rather than stored and silently discarded on the next reload.
+  const parsed = DeviceTypeSchema.safeParse(deviceType);
+  if (!parsed.success) {
+    const first = parsed.error.issues[0];
+    const field = first?.path.join(".") || "device";
+    return {
+      success: false,
+      error: `Invalid device type: ${field}: ${first?.message ?? "validation failed"}`,
+    };
+  }
+
+  return {
+    success: true,
+    result: {
+      deviceType: parsed.data,
+      inferredCategory,
+      warnings,
+    },
+  };
+}
+
+/**
+ * Full import pipeline: parse YAML and convert to DeviceType
+ */
+export async function importFromNetBoxYaml(
+  yamlString: string,
+  options?: {
+    category?: DeviceCategory;
+    colour?: string;
+    existingSlugs?: Iterable<string>;
+  },
+): Promise<ConvertResult> {
+  const parseResult = await parseNetBoxYaml(yamlString);
+
+  if (parseResult.success === false) {
+    return { success: false, error: parseResult.error };
+  }
+
+  return convertToDeviceType(parseResult.data, options);
+}

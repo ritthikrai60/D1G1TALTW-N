@@ -1,0 +1,157 @@
+/**
+ * Google Material Design 3 (M3) Baseline Design Tokens
+ * Conforming to @material/web v0.192+ Design Token Specification
+ */
+
+:root {
+  /* M3 Shape Scale */
+  --md-sys-shape-corner-none: 0px;
+  --md-sys-shape-corner-extra-small: 4px;
+  --md-sys-shape-corner-small: 8px;
+  --md-sys-shape-corner-medium: 12px;
+  --md-sys-shape-corner-large: 16px;
+  --md-sys-shape-corner-extra-large: 28px;
+  --md-sys-shape-corner-full: 9999px;
+
+  /* M3 Elevation Shadow Tokens */
+  --md-sys-elevation-level0: none;
+  --md-sys-elevation-level1: 0px 1px 3px 1px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.3);
+  --md-sys-elevation-level2: 0px 2px 6px 2px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.3);
+  --md-sys-elevation-level3: 0px 4px 8px 3px rgba(0, 0, 0, 0.15), 0px 1px 3px 0px rgba(0, 0, 0, 0.3);
+  --md-sys-elevation-level4: 0px 6px 10px 4px rgba(0, 0, 0, 0.15), 0px 2px 3px 0px rgba(0, 0, 0, 0.3);
+  --md-sys-elevation-level5: 0px 8px 12px 6px rgba(0, 0, 0, 0.15), 0px 4px 4px 0px rgba(0, 0, 0, 0.3);
+
+  /* M3 Typography Font Family */
+  --md-ref-typeface-brand: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --md-ref-typeface-plain: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+
+  /* Light Theme (Default Baseline) */
+  --md-sys-color-primary: #2563eb;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #dbeafe;
+  --md-sys-color-on-primary-container: #1e3a8a;
+  --md-sys-color-secondary: #52525b;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #f4f4f5;
+  --md-sys-color-on-secondary-container: #18181b;
+  --md-sys-color-tertiary: #0f766e;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #ccfbf1;
+  --md-sys-color-on-tertiary-container: #042f2e;
+  --md-sys-color-error: #b3261e;
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: #f9dedc;
+  --md-sys-color-on-error-container: #410e0b;
+  --md-sys-color-background: #fafafa;
+  --md-sys-color-on-background: #18181b;
+  --md-sys-color-surface: #fafafa;
+  --md-sys-color-on-surface: #18181b;
+  --md-sys-color-surface-variant: #e4e4e7;
+  --md-sys-color-on-surface-variant: #52525b;
+  --md-sys-color-outline: #71717a;
+  --md-sys-color-outline-variant: #d4d4d8;
+  --md-sys-color-shadow: #000000;
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-inverse-surface: #27272a;
+  --md-sys-color-inverse-on-surface: #fafafa;
+  --md-sys-color-inverse-primary: #60a5fa;
+  --md-sys-color-surface-dim: #e4e4e7;
+  --md-sys-color-surface-bright: #fafafa;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #f9f9fa;
+  --md-sys-color-surface-container: #f4f4f5;
+  --md-sys-color-surface-container-high: #efeff1;
+  --md-sys-color-surface-container-highest: #e4e4e7;
+}
+
+/* Dark Theme (Google Baseline M3 Dark Palette) */
+:root.dark,
+.dark {
+  --md-sys-color-primary: #60a5fa;
+  --md-sys-color-on-primary: #0b2a6b;
+  --md-sys-color-primary-container: #1e3a8a;
+  --md-sys-color-on-primary-container: #dbeafe;
+  --md-sys-color-secondary: #a1a1aa;
+  --md-sys-color-on-secondary: #27272a;
+  --md-sys-color-secondary-container: #3f3f46;
+  --md-sys-color-on-secondary-container: #e4e4e7;
+  --md-sys-color-tertiary: #5eead4;
+  --md-sys-color-on-tertiary: #042f2e;
+  --md-sys-color-tertiary-container: #115e59;
+  --md-sys-color-on-tertiary-container: #ccfbf1;
+  --md-sys-color-error: #f2b8b5;
+  --md-sys-color-on-error: #601410;
+  --md-sys-color-error-container: #8c1d18;
+  --md-sys-color-on-error-container: #f9dedc;
+  --md-sys-color-background: #111113;
+  --md-sys-color-on-background: #ececef;
+  --md-sys-color-surface: #111113;
+  --md-sys-color-on-surface: #ececef;
+  --md-sys-color-surface-variant: #3f3f46;
+  --md-sys-color-on-surface-variant: #d4d4d8;
+  --md-sys-color-outline: #8b8b94;
+  --md-sys-color-outline-variant: #3f3f46;
+  --md-sys-color-shadow: #000000;
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-inverse-surface: #ececef;
+  --md-sys-color-inverse-on-surface: #27272a;
+  --md-sys-color-inverse-primary: #2563eb;
+  --md-sys-color-surface-dim: #111113;
+  --md-sys-color-surface-bright: #2a2a2f;
+  --md-sys-color-surface-container-lowest: #0c0c0e;
+  --md-sys-color-surface-container-low: #16161a;
+  --md-sys-color-surface-container: #1b1b1f;
+  --md-sys-color-surface-container-high: #232328;
+  --md-sys-color-surface-container-highest: #2e2e34;
+}
+
+/* Material 3 Web Components Global Tweaks & Smooth Renders */
+md-filled-button,
+md-outlined-button,
+md-elevated-button,
+md-filled-tonal-button,
+md-text-button,
+md-fab,
+md-chip-set,
+md-filter-chip,
+md-assist-chip,
+md-outlined-text-field,
+md-filled-text-field,
+md-switch,
+md-tabs,
+md-primary-tab,
+md-icon-button,
+md-filled-icon-button,
+md-filled-tonal-icon-button,
+md-outlined-icon-button,
+md-outlined-segmented-button-set,
+md-outlined-segmented-button,
+md-badge,
+md-divider,
+md-dialog,
+md-menu,
+md-menu-item {
+  font-family: var(--md-ref-typeface-plain);
+  vertical-align: middle;
+}
+
+/* Ensure M3 Dialogs align over Three.js Canvas with high z-index */
+md-dialog {
+  --md-dialog-container-color: var(--md-sys-color-surface-container-high);
+  z-index: 1050;
+}
+
+/* M3 Badge Relative Anchor */
+.m3-badge-anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.m3-badge-anchor md-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  pointer-events: none;
+}
+
+
