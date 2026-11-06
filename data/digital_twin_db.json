@@ -3,15 +3,15 @@
   "metadata": {
     "projectName": "LUDUS Building Digital Twin & Network Command",
     "buildingModel": "LUDUS_Building_No_Glass.igz",
-    "updatedAt": "2026-11-06T02:49:22.610Z",
+    "updatedAt": "2026-11-06T02:56:50.900Z",
     "schemaVersion": "2.0.0",
     "totalNetworks": 5,
     "totalRooms": 1,
-    "totalDevices": 41,
-    "placedDevices": 0,
-    "unplacedDevices": 41,
-    "onlinePlacedDevices": 0,
-    "onlineTotalDevices": 0,
+    "totalDevices": 42,
+    "placedDevices": 2,
+    "unplacedDevices": 40,
+    "onlinePlacedDevices": 1,
+    "onlineTotalDevices": 1,
     "defaultViewState": {
       "showGlass": true,
       "showRooms": true,
@@ -320,7 +320,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:42.471Z",
-      "updatedAt": "2026-11-06T02:49:19.733Z",
+      "updatedAt": "2026-11-06T02:56:30.383Z",
       "networkInfo": {
         "ip": "192.168.110.51",
         "subnet": "192.168.110.0/24",
@@ -723,7 +723,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:42.591Z",
-      "updatedAt": "2026-11-06T02:48:37.409Z",
+      "updatedAt": "2026-11-06T02:56:32.422Z",
       "networkInfo": {
         "ip": "192.168.110.52",
         "subnet": "192.168.110.0/24",
@@ -1126,7 +1126,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:42.691Z",
-      "updatedAt": "2026-11-06T02:48:39.397Z",
+      "updatedAt": "2026-11-06T02:56:34.891Z",
       "networkInfo": {
         "ip": "192.168.110.53",
         "subnet": "192.168.110.0/24",
@@ -1528,7 +1528,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:42.771Z",
-      "updatedAt": "2026-11-06T02:48:41.398Z",
+      "updatedAt": "2026-11-06T02:56:36.902Z",
       "networkInfo": {
         "ip": "192.168.110.54",
         "subnet": "192.168.110.0/24",
@@ -1929,7 +1929,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:42.956Z",
-      "updatedAt": "2026-11-06T02:48:43.407Z",
+      "updatedAt": "2026-11-06T02:56:38.900Z",
       "networkInfo": {
         "ip": "192.168.110.58",
         "subnet": "192.168.110.0/24",
@@ -2210,7 +2210,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.067Z",
-      "updatedAt": "2026-11-06T02:47:16.894Z",
+      "updatedAt": "2026-11-06T02:56:40.896Z",
       "networkInfo": {
         "ip": "192.168.110.69",
         "subnet": "192.168.110.0/24",
@@ -2408,7 +2408,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.119Z",
-      "updatedAt": "2026-11-06T02:47:18.896Z",
+      "updatedAt": "2026-11-06T02:56:42.892Z",
       "networkInfo": {
         "ip": "192.168.110.70",
         "subnet": "192.168.110.0/24",
@@ -2606,7 +2606,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.181Z",
-      "updatedAt": "2026-11-06T02:47:20.912Z",
+      "updatedAt": "2026-11-06T02:56:44.910Z",
       "networkInfo": {
         "ip": "192.168.110.71",
         "subnet": "192.168.110.0/24",
@@ -2804,7 +2804,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.231Z",
-      "updatedAt": "2026-11-06T02:47:22.892Z",
+      "updatedAt": "2026-11-06T02:56:46.892Z",
       "networkInfo": {
         "ip": "192.168.110.79",
         "subnet": "192.168.110.0/24",
@@ -3002,7 +3002,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.279Z",
-      "updatedAt": "2026-11-06T02:47:24.918Z",
+      "updatedAt": "2026-11-06T02:56:48.891Z",
       "networkInfo": {
         "ip": "192.168.110.93",
         "subnet": "192.168.110.0/24",
@@ -3200,7 +3200,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.332Z",
-      "updatedAt": "2026-11-06T02:47:27.410Z",
+      "updatedAt": "2026-11-06T02:56:50.900Z",
       "networkInfo": {
         "ip": "192.168.110.98",
         "subnet": "192.168.110.0/24",
@@ -3418,7 +3418,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.420Z",
-      "updatedAt": "2026-11-06T02:47:29.402Z",
+      "updatedAt": "2026-11-06T02:56:08.888Z",
       "networkInfo": {
         "ip": "192.168.110.123",
         "subnet": "192.168.110.0/24",
@@ -3635,7 +3635,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.524Z",
-      "updatedAt": "2026-11-06T02:47:31.390Z",
+      "updatedAt": "2026-11-06T02:56:10.924Z",
       "networkInfo": {
         "ip": "192.168.110.124",
         "subnet": "192.168.110.0/24",
@@ -3853,7 +3853,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.645Z",
-      "updatedAt": "2026-11-06T02:47:33.391Z",
+      "updatedAt": "2026-11-06T02:56:13.403Z",
       "networkInfo": {
         "ip": "192.168.110.125",
         "subnet": "192.168.110.0/24",
@@ -4070,7 +4070,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.710Z",
-      "updatedAt": "2026-11-06T02:47:35.391Z",
+      "updatedAt": "2026-11-06T02:56:15.395Z",
       "networkInfo": {
         "ip": "192.168.110.128",
         "subnet": "192.168.110.0/24",
@@ -4287,7 +4287,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.764Z",
-      "updatedAt": "2026-11-06T02:47:37.385Z",
+      "updatedAt": "2026-11-06T02:56:17.415Z",
       "networkInfo": {
         "ip": "192.168.110.129",
         "subnet": "192.168.110.0/24",
@@ -4504,7 +4504,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.815Z",
-      "updatedAt": "2026-11-06T02:47:39.406Z",
+      "updatedAt": "2026-11-06T02:56:19.905Z",
       "networkInfo": {
         "ip": "192.168.110.130",
         "subnet": "192.168.110.0/24",
@@ -4721,7 +4721,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.908Z",
-      "updatedAt": "2026-11-06T02:46:57.891Z",
+      "updatedAt": "2026-11-06T02:56:21.902Z",
       "networkInfo": {
         "ip": "192.168.110.132",
         "subnet": "192.168.110.0/24",
@@ -5111,7 +5111,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:43.958Z",
-      "updatedAt": "2026-11-06T02:46:59.890Z",
+      "updatedAt": "2026-11-06T02:56:23.900Z",
       "networkInfo": {
         "ip": "192.168.110.134",
         "subnet": "192.168.110.0/24",
@@ -5351,7 +5351,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:44.054Z",
-      "updatedAt": "2026-11-06T02:47:01.890Z",
+      "updatedAt": "2026-11-06T02:56:25.916Z",
       "networkInfo": {
         "ip": "192.168.110.141",
         "subnet": "192.168.110.0/24",
@@ -5579,7 +5579,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:44.253Z",
-      "updatedAt": "2026-11-06T02:47:03.901Z",
+      "updatedAt": "2026-11-06T02:56:27.903Z",
       "networkInfo": {
         "ip": "192.168.110.155",
         "subnet": "192.168.110.0/24",
@@ -5752,7 +5752,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:12:58.981Z",
-      "updatedAt": "2026-11-06T02:47:05.902Z",
+      "updatedAt": "2026-11-06T02:56:29.923Z",
       "networkInfo": {
         "ip": "192.168.110.191",
         "subnet": "192.168.110.0/24",
@@ -5992,7 +5992,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:47.338Z",
-      "updatedAt": "2026-11-06T02:47:07.911Z",
+      "updatedAt": "2026-11-06T02:56:32.410Z",
       "networkInfo": {
         "ip": "192.168.110.199",
         "subnet": "192.168.110.0/24",
@@ -6165,7 +6165,7 @@
         }
       ],
       "lastSeen": "2026-11-05T11:07:00.734Z",
-      "updatedAt": "2026-11-06T02:47:09.902Z",
+      "updatedAt": "2026-11-06T02:56:34.401Z",
       "networkInfo": {
         "ip": "192.168.110.214",
         "subnet": "192.168.110.0/24",
@@ -6361,7 +6361,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:49.820Z",
-      "updatedAt": "2026-11-06T02:47:11.901Z",
+      "updatedAt": "2026-11-06T02:56:36.415Z",
       "networkInfo": {
         "ip": "192.168.110.233",
         "subnet": "192.168.110.0/24",
@@ -6578,7 +6578,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:50.136Z",
-      "updatedAt": "2026-11-06T02:47:14.415Z",
+      "updatedAt": "2026-11-06T02:56:38.401Z",
       "networkInfo": {
         "ip": "192.168.110.235",
         "subnet": "192.168.110.0/24",
@@ -6751,7 +6751,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:50.354Z",
-      "updatedAt": "2026-11-06T02:47:16.908Z",
+      "updatedAt": "2026-11-06T02:56:40.396Z",
       "networkInfo": {
         "ip": "192.168.111.4",
         "subnet": "192.168.111.0/24",
@@ -6924,7 +6924,7 @@
         }
       ],
       "lastSeen": "2026-11-05T11:46:52.994Z",
-      "updatedAt": "2026-11-06T02:47:18.908Z",
+      "updatedAt": "2026-11-06T02:56:42.391Z",
       "networkInfo": {
         "ip": "192.168.111.78",
         "subnet": "192.168.111.0/24",
@@ -7120,7 +7120,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:52.827Z",
-      "updatedAt": "2026-11-06T02:47:20.896Z",
+      "updatedAt": "2026-11-06T02:56:44.394Z",
       "networkInfo": {
         "ip": "192.168.111.87",
         "subnet": "192.168.111.0/24",
@@ -7316,7 +7316,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:52.884Z",
-      "updatedAt": "2026-11-06T02:47:22.902Z",
+      "updatedAt": "2026-11-06T02:56:46.401Z",
       "networkInfo": {
         "ip": "192.168.111.88",
         "subnet": "192.168.111.0/24",
@@ -7725,7 +7725,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:52.970Z",
-      "updatedAt": "2026-11-06T02:47:24.906Z",
+      "updatedAt": "2026-11-06T02:56:48.404Z",
       "networkInfo": {
         "ip": "192.168.111.93",
         "subnet": "192.168.111.0/24",
@@ -8134,7 +8134,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:53.031Z",
-      "updatedAt": "2026-11-06T02:47:26.891Z",
+      "updatedAt": "2026-11-06T02:56:50.395Z",
       "networkInfo": {
         "ip": "192.168.111.100",
         "subnet": "192.168.111.0/24",
@@ -8543,7 +8543,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:53.078Z",
-      "updatedAt": "2026-11-06T02:47:28.902Z",
+      "updatedAt": "2026-11-06T02:56:05.390Z",
       "networkInfo": {
         "ip": "192.168.111.104",
         "subnet": "192.168.111.0/24",
@@ -8613,7 +8613,9 @@
         "parentDeviceId": "DEV-192-168-110-69",
         "parentDeviceName": "Distribution-Gateway-110-69 (Secondary Router)",
         "uplinkPort": "SFP+-1/0/9",
-        "childrenIds": [],
+        "childrenIds": [
+          "DEV-MW3O7I8F-L1H"
+        ],
         "path": [
           "WAN-ROOT",
           "DEV-192-168-110-69",
@@ -8930,7 +8932,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:53.130Z",
-      "updatedAt": "2026-11-06T02:47:30.891Z",
+      "updatedAt": "2026-11-06T02:56:07.409Z",
       "networkInfo": {
         "ip": "192.168.111.105",
         "subnet": "192.168.111.0/24",
@@ -8981,15 +8983,19 @@
       "connectedSwitch": "Distribution-Gateway-110-69 (Secondary Router)",
       "switchPort": "SFP+-1/0/10",
       "vlan": "VLAN 111 (Access)",
-      "isPlaced": false,
-      "floorIdx": null,
-      "roomId": "",
-      "roomNumber": "",
-      "position": null,
+      "isPlaced": true,
+      "floorIdx": 1,
+      "roomId": "ROOM-MW3AQGRP-LPG",
+      "roomNumber": "101",
+      "position": {
+        "x": -6.5,
+        "y": 4.05,
+        "z": 4.22
+      },
       "modelType": "pin",
       "rotationY": 0,
-      "parentRackId": "",
-      "uPosition": null,
+      "parentRackId": "DEV-MW3O7I8F-L1H",
+      "uPosition": 25,
       "uHeight": 1,
       "rackFace": "both",
       "isFullDepth": true,
@@ -9339,7 +9345,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:53.169Z",
-      "updatedAt": "2026-11-06T02:49:20.310Z",
+      "updatedAt": "2026-11-06T02:56:09.392Z",
       "networkInfo": {
         "ip": "192.168.111.106",
         "subnet": "192.168.111.0/24",
@@ -9357,13 +9363,17 @@
         "assetTag": "AST-2026-111-106"
       },
       "spatialInfo": {
-        "isPlaced": false,
+        "isPlaced": true,
         "building": "LUDUS_Building_No_Glass",
-        "floorIdx": null,
-        "floorLabel": null,
-        "roomId": "",
-        "roomNumber": "",
-        "position": null
+        "floorIdx": 1,
+        "floorLabel": "01_First_Floor",
+        "roomId": "ROOM-MW3AQGRP-LPG",
+        "roomNumber": "101",
+        "position": {
+          "x": -6.5,
+          "y": 4.05,
+          "z": 4.22
+        }
       },
       "telemetry": {
         "status": "Offline",
@@ -9546,7 +9556,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:10:51.735Z",
-      "updatedAt": "2026-11-06T02:47:34.891Z",
+      "updatedAt": "2026-11-06T02:56:11.383Z",
       "networkInfo": {
         "ip": "192.168.111.130",
         "subnet": "192.168.111.0/24",
@@ -9679,7 +9689,7 @@
         }
       ],
       "lastSeen": "2026-11-05T11:57:23.760Z",
-      "updatedAt": "2026-11-06T02:47:36.889Z",
+      "updatedAt": "2026-11-06T02:56:13.387Z",
       "networkInfo": {
         "ip": "192.168.111.172",
         "subnet": "192.168.111.0/24",
@@ -10088,7 +10098,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:08.728Z",
-      "updatedAt": "2026-11-06T02:47:38.906Z",
+      "updatedAt": "2026-11-06T02:56:15.382Z",
       "networkInfo": {
         "ip": "192.168.111.197",
         "subnet": "192.168.111.0/24",
@@ -10295,7 +10305,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:08.825Z",
-      "updatedAt": "2026-11-06T02:47:40.911Z",
+      "updatedAt": "2026-11-06T02:56:17.463Z",
       "networkInfo": {
         "ip": "192.168.111.220",
         "subnet": "192.168.111.0/24",
@@ -10491,7 +10501,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:08.881Z",
-      "updatedAt": "2026-11-06T02:46:55.897Z",
+      "updatedAt": "2026-11-06T02:56:19.894Z",
       "networkInfo": {
         "ip": "192.168.111.239",
         "subnet": "192.168.111.0/24",
@@ -10709,7 +10719,7 @@
         }
       ],
       "lastSeen": "2026-11-05T12:13:08.934Z",
-      "updatedAt": "2026-11-06T02:46:57.900Z",
+      "updatedAt": "2026-11-06T02:56:21.894Z",
       "networkInfo": {
         "ip": "192.168.110.57",
         "subnet": "192.168.110.0/24",
@@ -10739,6 +10749,110 @@
         "status": "Offline",
         "latencyMs": null,
         "lastSeen": "2026-11-05T12:13:08.934Z"
+      }
+    },
+    {
+      "id": "DEV-MW3O7I8F-L1H",
+      "name": "Security Rack",
+      "category": "Server",
+      "customType": "",
+      "color": "#38bdf8",
+      "status": "Online",
+      "value": "",
+      "ip": "",
+      "subnet": "",
+      "mac": "",
+      "vendor": "Server Rack Cabinet",
+      "hostname": "",
+      "osFirmware": "",
+      "serialNumber": "",
+      "assetTag": "",
+      "connectedSwitch": "Managed-Switch-SW09 (192.168.111.105)",
+      "switchPort": "PoE-Gi1/0/18",
+      "vlan": "VLAN 1",
+      "isPlaced": true,
+      "floorIdx": 1,
+      "roomId": "ROOM-MW3AQGRP-LPG",
+      "roomNumber": "101",
+      "position": {
+        "x": -6.5,
+        "y": 4.05,
+        "z": 4.22
+      },
+      "modelType": "server_rack",
+      "rotationY": 180,
+      "parentRackId": "",
+      "uPosition": null,
+      "uHeight": 1,
+      "rackFace": "front",
+      "isFullDepth": true,
+      "rackConfig": {
+        "rackHeight": 27,
+        "rackWidth": 19,
+        "formFactor": "4-post-cabinet",
+        "notes": ""
+      },
+      "hierarchy": {
+        "tier": 3,
+        "role": "Infrastructure Server / VM",
+        "parentDeviceId": "DEV-192-168-111-105",
+        "parentDeviceName": "Managed-Switch-SW09 (192.168.111.105)",
+        "uplinkPort": "PoE-Gi1/0/18",
+        "childrenIds": [],
+        "path": [
+          "WAN-ROOT",
+          "DEV-192-168-110-69",
+          "DEV-192-168-111-105",
+          "DEV-MW3O7I8F-L1H"
+        ]
+      },
+      "openPorts": [],
+      "snmpInfo": {},
+      "switchInterfaces": [],
+      "credentials": {
+        "username": "admin",
+        "password": "",
+        "loginUrl": "",
+        "defaultPort": "",
+        "notes": ""
+      },
+      "latencyMs": null,
+      "latencyHistory": [],
+      "lastSeen": "2026-11-05T14:58:24.399Z",
+      "updatedAt": "2026-11-06T02:52:12.190Z",
+      "networkInfo": {
+        "ip": "",
+        "subnet": "",
+        "mac": "",
+        "vendor": "Server Rack Cabinet",
+        "hostname": "",
+        "vlan": "VLAN 1",
+        "connectedSwitch": "Managed-Switch-SW09 (192.168.111.105)",
+        "switchPort": "PoE-Gi1/0/18"
+      },
+      "hardwareInfo": {
+        "vendor": "Server Rack Cabinet",
+        "osFirmware": "",
+        "serialNumber": "",
+        "assetTag": ""
+      },
+      "spatialInfo": {
+        "isPlaced": true,
+        "building": "LUDUS_Building_No_Glass",
+        "floorIdx": 1,
+        "floorLabel": "01_First_Floor",
+        "roomId": "ROOM-MW3AQGRP-LPG",
+        "roomNumber": "101",
+        "position": {
+          "x": -6.5,
+          "y": 4.05,
+          "z": 4.22
+        }
+      },
+      "telemetry": {
+        "status": "Online",
+        "latencyMs": null,
+        "lastSeen": "2026-11-05T14:58:24.399Z"
       }
     }
   ],
@@ -10793,7 +10907,44 @@
           "interfaceName": "Wi-Fi"
         }
       ],
-      "children": []
+      "children": [
+        {
+          "id": "DEV-192-168-111-106",
+          "name": "Managed-Switch-SW10 (192.168.111.106)",
+          "ip": "192.168.111.106",
+          "mac": "00:22:6C:23:79:F0",
+          "vendor": "Cisco / Linksys Network Endpoint",
+          "category": "Switch",
+          "tier": 2,
+          "role": "Distribution / PoE Switch",
+          "status": "Offline",
+          "latencyMs": null,
+          "uplinkPort": "SFP+-1/0/10",
+          "isPlaced": true,
+          "floorIdx": 1,
+          "roomNumber": "101",
+          "openPortsCount": 4,
+          "children": []
+        },
+        {
+          "id": "DEV-MW3O7I8F-L1H",
+          "name": "Security Rack",
+          "ip": "",
+          "mac": "",
+          "vendor": "Server Rack Cabinet",
+          "category": "Server",
+          "tier": 3,
+          "role": "Infrastructure Server / VM",
+          "status": "Online",
+          "latencyMs": null,
+          "uplinkPort": "PoE-Gi1/0/18",
+          "isPlaced": true,
+          "floorIdx": 1,
+          "roomNumber": "101",
+          "openPortsCount": 0,
+          "children": []
+        }
+      ]
     },
     "discoveredTopologyTree": {
       "id": "WAN-ROOT",
@@ -11556,7 +11707,26 @@
               "floorIdx": null,
               "roomNumber": "",
               "openPortsCount": 2,
-              "children": []
+              "children": [
+                {
+                  "id": "DEV-MW3O7I8F-L1H",
+                  "name": "Security Rack",
+                  "ip": "",
+                  "mac": "",
+                  "vendor": "Server Rack Cabinet",
+                  "category": "Server",
+                  "tier": 3,
+                  "role": "Infrastructure Server / VM",
+                  "status": "Online",
+                  "latencyMs": null,
+                  "uplinkPort": "PoE-Gi1/0/18",
+                  "isPlaced": true,
+                  "floorIdx": 1,
+                  "roomNumber": "101",
+                  "openPortsCount": 0,
+                  "children": []
+                }
+              ]
             },
             {
               "id": "DEV-192-168-111-106",
@@ -11570,9 +11740,9 @@
               "status": "Offline",
               "latencyMs": null,
               "uplinkPort": "SFP+-1/0/10",
-              "isPlaced": false,
-              "floorIdx": null,
-              "roomNumber": "",
+              "isPlaced": true,
+              "floorIdx": 1,
+              "roomNumber": "101",
               "openPortsCount": 4,
               "children": []
             },
@@ -11614,7 +11784,7 @@
           "floorIdx": 1,
           "floorLabel": "01_First_Floor",
           "totalRooms": 1,
-          "totalDevices": 0,
+          "totalDevices": 2,
           "rooms": [
             {
               "id": "ROOM-MW3AQGRP-LPG",
@@ -11652,12 +11822,39 @@
                 "z": 4.38
               },
               "healthSummary": {
-                "total": 0,
-                "online": 0,
+                "total": 2,
+                "online": 1,
                 "warning": 0,
-                "offline": 0
+                "offline": 1
               },
-              "devices": []
+              "devices": [
+                {
+                  "id": "DEV-192-168-111-106",
+                  "name": "Managed-Switch-SW10 (192.168.111.106)",
+                  "ip": "192.168.111.106",
+                  "mac": "00:22:6C:23:79:F0",
+                  "category": "Switch",
+                  "status": "Offline",
+                  "position": {
+                    "x": -6.5,
+                    "y": 4.05,
+                    "z": 4.22
+                  }
+                },
+                {
+                  "id": "DEV-MW3O7I8F-L1H",
+                  "name": "Security Rack",
+                  "ip": "",
+                  "mac": "",
+                  "category": "Server",
+                  "status": "Online",
+                  "position": {
+                    "x": -6.5,
+                    "y": 4.05,
+                    "z": 4.22
+                  }
+                }
+              ]
             }
           ]
         },
@@ -11676,7 +11873,7 @@
           "rooms": []
         }
       ],
-      "unplacedDevicesCount": 41
+      "unplacedDevicesCount": 40
     }
   },
   "scanHistory": []

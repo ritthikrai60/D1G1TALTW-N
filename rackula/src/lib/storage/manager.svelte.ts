@@ -347,6 +347,12 @@ function handleSaveFailure(
   _consecutiveSaveFailures++;
   setApiAvailable(false);
   _saveStatus = "offline";
+  const reloadAction = action || {
+    label: "Reload",
+    onClick: () => {
+      if (typeof window !== "undefined") window.location.reload();
+    },
+  };
   if (_consecutiveSaveFailures >= MAX_SAVE_FAILURES) {
     persistenceDebug.api(
       "circuit breaker open after %d consecutive failures — auto-save paused",
@@ -359,7 +365,7 @@ function handleSaveFailure(
       "Server unavailable. Working offline; changes saved locally. Reload to retry.",
       "warning",
       0,
-      action,
+      reloadAction,
     );
   } else if (notify) {
     if (_errorToastId) {
@@ -890,12 +896,11 @@ export function initPersistenceEffects(): void {
     if (apiState === true) return;
     if (getStorageMode() !== "server") return;
     if (_saveStatus === "disabled") return;
-    if (_consecutiveSaveFailures >= MAX_SAVE_FAILURES) return;
-
     persistenceDebug.health("API offline, starting health check interval");
     const intervalId = setInterval(async () => {
       const healthy = await checkApiHealth();
       if (healthy) {
+        _consecutiveSaveFailures = 0;
         persistenceDebug.health("API health check passed, marking available");
         setApiAvailable(true);
         _saveStatus = "idle";
@@ -913,7 +918,7 @@ export function initPersistenceEffects(): void {
       } else {
         persistenceDebug.health("API health check failed, still offline");
       }
-    }, 30000);
+    }, 3000);
 
     return () => clearInterval(intervalId);
   });
