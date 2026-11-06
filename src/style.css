@@ -299,6 +299,43 @@ body {
   font-style: italic;
 }
 
+.room-rollout-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #94a3b8;
+  padding: 6px 8px 3px;
+  margin-top: 4px;
+  border-top: 1px dashed rgba(148, 163, 184, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.room-device-item.is-nested-device {
+  margin-left: 12px;
+  border-left: 2px solid rgba(168, 85, 247, 0.5);
+  padding-left: 8px;
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.room-device-item.is-nested-device:hover {
+  background: rgba(168, 85, 247, 0.15);
+  border-left-color: rgba(168, 85, 247, 0.9);
+}
+
+.u-badge-pill {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 1px 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
 .draw-measure-badge {
   position: absolute;
   transform: translate(-50%, -140%);

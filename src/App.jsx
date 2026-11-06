@@ -3,6 +3,7 @@ import { ThreeViewport, DEFAULT_VIEW_STATE } from "@/components/ThreeViewport"
 import { DeviceModal } from "@/components/DeviceModal"
 import { RoomModal } from "@/components/RoomModal"
 import RackulaModal from "@/components/RackulaModal"
+import { RackHierarchyModal } from "@/components/RackHierarchyModal"
 import { AdminToolbar } from "@/components/AdminToolbar"
 import { ViewerMenu } from "@/components/ViewerMenu"
 import { RackNameDialog } from "@/components/RackNameDialog"
@@ -206,6 +207,7 @@ export default function App() {
   // Selected 3D Server Rack for Rackula 19-Inch Elevation Designer
   const [selectedRackId, setSelectedRackId] = useState(null)
   const [rackModalOpen, setRackModalOpen] = useState(false)
+  const [rackHierarchyModalOpen, setRackHierarchyModalOpen] = useState(false)
 
   const serverRacks = useMemo(
     () => devices.filter((d) => d.modelType === "server_rack" && d.isPlaced === true),
@@ -271,6 +273,21 @@ export default function App() {
     () => sessionStorage.getItem("dt_admin_token") || ""
   )
   const [adminAuthenticated, setAdminAuthenticated] = useState(false)
+
+  // Open Rack Hierarchy & Elevation Inspector Modal (In-place modal, no new tab)
+  const openRackHierarchy = useCallback((rackId) => {
+    const targetId = rackId || selectedRackId || serverRacks[0]?.id;
+    if (!targetId) {
+      toast({
+        title: "ไม่พบตู้แร็ค",
+        description: "ยังไม่มีตู้แร็คที่จัดวางบนอาคาร 3D",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSelectedRackId(targetId);
+    setRackHierarchyModalOpen(true);
+  }, [selectedRackId, serverRacks, toast]);
 
   // Open Rackula 19-Inch Elevation Designer in a dedicated full-screen tab
   const openRackulaWindow = useCallback((rackId) => {
@@ -1907,11 +1924,16 @@ export default function App() {
             const target = devices.find((d) => d.id === devId)
             if (target?.modelType === "server_rack") {
               setSelectedRackId(devId)
-              openRackulaWindow(devId)
+              openRackHierarchy(devId)
               if (isAdminRoute && adminAuthenticated) {
                 setActiveAdminDeviceId(devId)
                 if (target.roomId) setActiveAdminRoomId(target.roomId)
               }
+              return
+            }
+            if (target?.parentRackId) {
+              setSelectedRackId(target.parentRackId)
+              openRackHierarchy(target.parentRackId)
               return
             }
             if (isAdminRoute && adminAuthenticated) {
@@ -2789,13 +2811,13 @@ export default function App() {
         menuOpen={menuOpen}
         menuPinned={menuPinned}
         networks={networks}
-        onOpenRackula={openRackulaWindow}
+        onOpenRackula={openRackHierarchy}
         placedDevices={placedDevices}
         roomDirectorySearch={roomDirectorySearch}
         rooms={rooms}
         setDirectorySearch={setDirectorySearch}
         setExpandedDirectoryRoomId={setExpandedDirectoryRoomId}
-        setMainViewMode={openRackulaWindow}
+        setMainViewMode={openRackHierarchy}
         setMenuOpen={setMenuOpen}
         setModalOpen={setModalOpen}
         setRoomDirectorySearch={setRoomDirectorySearch}
@@ -2869,7 +2891,12 @@ export default function App() {
             const target = devices.find((d) => d.id === devId)
             if (target?.modelType === "server_rack") {
               setSelectedRackId(devId)
-              openRackulaWindow(devId)
+              openRackHierarchy(devId)
+              return
+            }
+            if (target?.parentRackId) {
+              setSelectedRackId(target.parentRackId)
+              openRackHierarchy(target.parentRackId)
               return
             }
             setSelectedDeviceId(devId)
@@ -2901,7 +2928,7 @@ export default function App() {
           batchRoomForm={batchRoomForm}
           setBatchRoomForm={setBatchRoomForm}
           handleBatchGenerateRooms={handleBatchGenerateRooms}
-          onOpenRackula={openRackulaWindow}
+          onOpenRackula={openRackHierarchy}
         />
       )}
 
@@ -2955,7 +2982,7 @@ export default function App() {
         onUnplaceDevice={handleUnplaceDevice}
         onOpenRackula={(rackId) => {
           setSelectedRackId(rackId)
-          openRackulaWindow(rackId)
+          openRackHierarchy(rackId)
           setModalOpen(false)
         }}
       />
@@ -2976,7 +3003,12 @@ export default function App() {
           const target = devices.find((d) => d.id === devId)
           if (target?.modelType === "server_rack") {
             setSelectedRackId(devId)
-            setRackModalOpen(true)
+            openRackHierarchy(devId)
+            return
+          }
+          if (target?.parentRackId) {
+            setSelectedRackId(target.parentRackId)
+            openRackHierarchy(target.parentRackId)
             return
           }
           setSelectedDeviceId(devId)
@@ -2987,7 +3019,26 @@ export default function App() {
         onRoomDeleted={() => fetchState()}
       />
 
-      {/* 9. RACKULA 19-INCH RACK ELEVATION DESIGNER & HARDWARE MANAGER MODAL */}
+      {/* 9. RACK HIERARCHY & ELEVATION INSPECTOR MODAL (In-place modal, root tree & mini units) */}
+      <RackHierarchyModal
+        open={rackHierarchyModalOpen}
+        onOpenChange={setRackHierarchyModalOpen}
+        rack={selectedRack}
+        allDevices={devices}
+        rooms={rooms}
+        isAdmin={isAdminRoute && adminAuthenticated}
+        adminToken={adminToken}
+        onOpenDeviceModal={(devId) => {
+          setSelectedDeviceId(devId)
+          setModalOpen(true)
+        }}
+        onOpenRackulaDesigner={(rackId) => {
+          openRackulaWindow(rackId)
+        }}
+        onFlyToRack={(pos, fIdx) => viewportRef.current?.flyTo(pos, fIdx)}
+      />
+
+      {/* 10. RACKULA 19-INCH RACK ELEVATION DESIGNER & HARDWARE MANAGER MODAL */}
       <RackulaModal
         open={rackModalOpen}
         rack={selectedRack}

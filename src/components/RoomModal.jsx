@@ -354,56 +354,176 @@ export function RoomModal({
                 </div>
               ) : (
                 <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                  {roomDevices.map((dev) => {
-                    const catMeta =
-                      DEVICE_CATEGORIES.find((c) => c.id === dev.category) ||
-                      DEVICE_CATEGORIES[0]
-                    const stLower = String(dev.status || "Online").toLowerCase()
-                    return (
-                      <div
-                        key={dev.id}
-                        className="rounded-lg border border-border bg-secondary/20 hover:bg-secondary/40 p-2.5 flex items-center justify-between gap-2 transition"
-                      >
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold flex items-center gap-1.5 truncate">
-                            <span
-                              className={`h-2 w-2 rounded-full shrink-0 ${
-                                stLower === "online"
-                                  ? "bg-emerald-400"
-                                  : stLower === "warning"
-                                  ? "bg-amber-400"
-                                  : "bg-rose-400"
-                              }`}
-                            />
-                            <span>{catMeta.icon}</span>
-                            <span className="truncate">{dev.name || dev.ip}</span>
-                            <Badge variant="outline" className="text-[10px] uppercase">
-                              {dev.category}
-                            </Badge>
-                          </div>
-                          <div className="text-[11px] font-mono text-muted-foreground truncate">
-                            IP: {dev.ip} · MAC: {dev.mac || "-"} · พอร์ตเปิด{" "}
-                            {(dev.openPorts || []).length} พอร์ต
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <Button
-                            size="sm"
-                            variant="default"
-                            className="h-7 text-xs"
-                            onClick={() => {
-                              onOpenChange(false)
-                              if (onSelectDevice) onSelectDevice(dev.id)
-                            }}
-                          >
-                            <ExternalLink className="h-3 w-3 mr-1" />
-                            ดูการ์ด / Login
-                          </Button>
-                        </div>
-                      </div>
+                  {(() => {
+                    const racks = roomDevices.filter((d) => d.modelType === "server_rack")
+                    const standalone = roomDevices.filter(
+                      (d) => d.modelType !== "server_rack" && !d.parentRackId
                     )
-                  })}
+
+                    return (
+                      <>
+                        {/* 1. Server Racks and their mounted devices */}
+                        {racks.map((rackDev) => {
+                          const mounted = roomDevices
+                            .filter((d) => d.parentRackId === rackDev.id)
+                            .sort((a, b) => Number(b.uPosition || 1) - Number(a.uPosition || 1))
+                          const rackStatus = String(rackDev.status || "online").toLowerCase()
+                          return (
+                            <div key={rackDev.id} className="space-y-1 rounded-lg border border-primary/30 bg-primary/5 p-2">
+                              {/* Rack Header Item */}
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="min-w-0 flex items-center gap-2">
+                                  <span
+                                    className={`h-2 w-2 rounded-full shrink-0 ${
+                                      rackStatus === "offline"
+                                        ? "bg-rose-400"
+                                        : rackStatus === "warning"
+                                        ? "bg-amber-400"
+                                        : "bg-emerald-400"
+                                    }`}
+                                  />
+                                  <span className="text-base">🗄️</span>
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-bold text-foreground truncate">
+                                      [ตู้แร็ค 42U] {rackDev.name || rackDev.ip}
+                                    </div>
+                                    <div className="text-[11px] font-mono text-muted-foreground">
+                                      อุปกรณ์ในตู้: {mounted.length} รายการ
+                                    </div>
+                                  </div>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-xs border-primary/40 text-primary hover:bg-primary/10 gap-1"
+                                  onClick={() => {
+                                    onOpenChange(false)
+                                    if (onSelectDevice) onSelectDevice(rackDev.id)
+                                  }}
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                  <span>เปิดผังตู้แร็ค</span>
+                                </Button>
+                              </div>
+
+                              {/* Nested Mounted Items */}
+                              {mounted.length > 0 && (
+                                <div className="ml-4 pl-2 border-l-2 border-primary/30 space-y-1 pt-1">
+                                  {mounted.map((mDev) => {
+                                    const mCat = DEVICE_CATEGORIES.find((c) => c.id === mDev.category) || DEVICE_CATEGORIES[0]
+                                    const mStatus = String(mDev.status || "Online").toLowerCase()
+                                    return (
+                                      <div
+                                        key={mDev.id}
+                                        className="rounded-md border border-border/60 bg-background/80 p-1.5 flex items-center justify-between gap-2 text-xs"
+                                      >
+                                        <div className="min-w-0 flex items-center gap-1.5 truncate">
+                                          <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted/60 text-primary shrink-0">
+                                            U{mDev.uPosition || 1}
+                                          </span>
+                                          <span
+                                            className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                                              mStatus === "offline"
+                                                ? "bg-rose-400"
+                                                : mStatus === "warning"
+                                                ? "bg-amber-400"
+                                                : "bg-emerald-400"
+                                            }`}
+                                          />
+                                          <span className="shrink-0">{mCat.icon}</span>
+                                          <span className="font-semibold truncate">{mDev.name || mDev.ip}</span>
+                                          <Badge variant="outline" className="text-[9px] uppercase font-mono px-1 py-0">
+                                            {mDev.category}
+                                          </Badge>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                          <span className="text-[10px] font-mono text-muted-foreground">
+                                            {mDev.ip || "-"}
+                                          </span>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-6 px-1.5 text-[10px] text-primary"
+                                            onClick={() => {
+                                              onOpenChange(false)
+                                              if (onSelectDevice) onSelectDevice(mDev.id)
+                                            }}
+                                          >
+                                            ดูการ์ด ➔
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+
+                        {/* 2. Standalone Room Devices */}
+                        {standalone.length > 0 && (
+                          <div className="space-y-1 pt-1">
+                            {racks.length > 0 && (
+                              <div className="text-[11px] font-bold font-mono text-muted-foreground uppercase px-1">
+                                อุปกรณ์ประจำห้อง ({standalone.length})
+                              </div>
+                            )}
+                            {standalone.map((dev) => {
+                              const catMeta =
+                                DEVICE_CATEGORIES.find((c) => c.id === dev.category) ||
+                                DEVICE_CATEGORIES[0]
+                              const stLower = String(dev.status || "Online").toLowerCase()
+                              return (
+                                <div
+                                  key={dev.id}
+                                  className="rounded-lg border border-border bg-secondary/20 hover:bg-secondary/40 p-2.5 flex items-center justify-between gap-2 transition"
+                                >
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-bold flex items-center gap-1.5 truncate">
+                                      <span
+                                        className={`h-2 w-2 rounded-full shrink-0 ${
+                                          stLower === "online"
+                                            ? "bg-emerald-400"
+                                            : stLower === "warning"
+                                            ? "bg-amber-400"
+                                            : "bg-rose-400"
+                                        }`}
+                                      />
+                                      <span>{catMeta.icon}</span>
+                                      <span className="truncate">{dev.name || dev.ip}</span>
+                                      <Badge variant="outline" className="text-[10px] uppercase">
+                                        {dev.category}
+                                      </Badge>
+                                    </div>
+                                    <div className="text-[11px] font-mono text-muted-foreground truncate">
+                                      IP: {dev.ip} · MAC: {dev.mac || "-"} · พอร์ตเปิด{" "}
+                                      {(dev.openPorts || []).length} พอร์ต
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    <Button
+                                      size="sm"
+                                      variant="default"
+                                      className="h-7 text-xs"
+                                      onClick={() => {
+                                        onOpenChange(false)
+                                        if (onSelectDevice) onSelectDevice(dev.id)
+                                      }}
+                                    >
+                                      <ExternalLink className="h-3 w-3 mr-1" />
+                                      ดูการ์ด / Login
+                                    </Button>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </>
+                    )
+                  })()}
                 </div>
               )}
             </div>

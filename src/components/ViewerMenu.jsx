@@ -698,65 +698,162 @@ export function ViewerMenu({
                                     ยังไม่มีอุปกรณ์ติดตั้งในห้องนี้
                                   </div>
                                 ) : (
-                                  <div className="space-y-1 max-h-40 overflow-y-auto pr-0.5">
-                                    {rmDevices.map((dev) => {
-                                      const isRack = dev.modelType === "server_rack"
-                                      const dCatMeta = DEVICE_CATEGORIES.find((c) => c.id === dev.category)
-                                      const devStatus = String(dev.status || "").toLowerCase()
-                                      return (
-                                        <div
-                                          key={dev.id}
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            if (!menuPinned) setMenuOpen(false)
-                                            if (isRack) {
-                                              setSelectedRackId(dev.id)
-                                              if (onOpenRackula) {
-                                                onOpenRackula(dev.id)
-                                              } else if (setMainViewMode) {
-                                                setMainViewMode(dev.id)
-                                              }
-                                            } else {
-                                              setSelectedDeviceId(dev.id)
-                                              setModalOpen(true)
-                                            }
-                                          }}
-                                          className={`flex items-center justify-between gap-2 p-1.5 rounded-md text-xs transition cursor-pointer border ${
-                                            isRack
-                                              ? "bg-accent/30 hover:bg-accent/50 border-primary/40 text-primary"
-                                              : "bg-background/60 hover:bg-background/90 border-border/50 text-foreground"
-                                          }`}
-                                          title={
-                                            isRack
-                                              ? `เปิดจัดการตู้แร็ค Rackula (${dev.name || dev.ip})`
-                                              : `เปิดรายละเอียดอุปกรณ์ (${dev.name || dev.ip})`
-                                          }
-                                        >
-                                          <div className="min-w-0 flex items-center gap-1.5">
-                                            <span
-                                              className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-                                                devStatus === "offline"
-                                                  ? "bg-rose-400"
-                                                  : devStatus === "warning"
-                                                  ? "bg-amber-400"
-                                                  : "bg-emerald-400"
-                                              }`}
-                                            />
-                                            <span className="shrink-0">{isRack ? "🗄️" : (dCatMeta?.icon || "📦")}</span>
-                                            <span className="font-semibold truncate">{dev.name || dev.ip}</span>
-                                          </div>
-                                          <div className="flex items-center gap-1 shrink-0">
-                                            {isRack ? (
-                                              <Badge className="text-[9px] px-1 py-0 bg-primary/20 text-primary border-primary/40 font-mono">
-                                                🖥️ ตู้แร็ค
-                                              </Badge>
-                                            ) : (
-                                              <span className="text-[10px] font-mono text-muted-foreground">{dev.ip || "-"}</span>
-                                            )}
-                                          </div>
-                                        </div>
+                                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
+                                    {(() => {
+                                      const racks = rmDevices.filter((d) => d.modelType === "server_rack")
+                                      const standalone = rmDevices.filter(
+                                        (d) => d.modelType !== "server_rack" && !d.parentRackId
                                       )
-                                    })}
+
+                                      return (
+                                        <>
+                                          {/* 1. Server Racks and their mounted units */}
+                                          {racks.map((rackDev) => {
+                                            const mounted = rmDevices
+                                              .filter((d) => d.parentRackId === rackDev.id)
+                                              .sort((a, b) => Number(b.uPosition || 1) - Number(a.uPosition || 1))
+                                            const rackStatus = String(rackDev.status || "online").toLowerCase()
+                                            return (
+                                              <div key={rackDev.id} className="space-y-1">
+                                                <div
+                                                  onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    if (!menuPinned) setMenuOpen(false)
+                                                    setSelectedRackId(rackDev.id)
+                                                    if (onOpenRackula) {
+                                                      onOpenRackula(rackDev.id)
+                                                    } else if (setMainViewMode) {
+                                                      setMainViewMode(rackDev.id)
+                                                    }
+                                                  }}
+                                                  className="flex items-center justify-between gap-2 p-1.5 rounded-md text-xs transition cursor-pointer border bg-accent/30 hover:bg-accent/50 border-primary/40 text-primary shadow-xs"
+                                                  title={`เปิดดูผังตู้แร็ค ${rackDev.name || rackDev.ip}`}
+                                                >
+                                                  <div className="min-w-0 flex items-center gap-1.5">
+                                                    <span
+                                                      className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                                                        rackStatus === "offline"
+                                                          ? "bg-rose-400"
+                                                          : rackStatus === "warning"
+                                                          ? "bg-amber-400"
+                                                          : "bg-emerald-400"
+                                                      }`}
+                                                    />
+                                                    <span className="shrink-0 text-sm">🗄️</span>
+                                                    <div className="min-w-0">
+                                                      <div className="font-bold truncate text-foreground">
+                                                        {rackDev.name || "Server Rack"}
+                                                      </div>
+                                                      <div className="text-[10px] font-mono text-muted-foreground">
+                                                        ตู้แร็ค 42U · {mounted.length} อุปกรณ์
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                  <Badge className="text-[9px] px-1.5 py-0 bg-primary/20 text-primary border-primary/40 font-mono shrink-0">
+                                                    ผังตู้ ➔
+                                                  </Badge>
+                                                </div>
+
+                                                {/* Nested Mounted Devices */}
+                                                {mounted.length > 0 && (
+                                                  <div className="ml-3 pl-2 border-l-2 border-primary/30 space-y-0.5">
+                                                    {mounted.map((mDev) => {
+                                                      const mCat = DEVICE_CATEGORIES.find((c) => c.id === mDev.category)
+                                                      const mStatus = String(mDev.status || "online").toLowerCase()
+                                                      return (
+                                                        <div
+                                                          key={mDev.id}
+                                                          onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            if (!menuPinned) setMenuOpen(false)
+                                                            setSelectedRackId(rackDev.id)
+                                                            if (onOpenRackula) {
+                                                              onOpenRackula(rackDev.id)
+                                                            } else {
+                                                              setSelectedDeviceId(mDev.id)
+                                                              setModalOpen(true)
+                                                            }
+                                                          }}
+                                                          className="flex items-center justify-between gap-1.5 p-1 rounded text-[11px] cursor-pointer hover:bg-secondary/40 text-muted-foreground hover:text-foreground transition"
+                                                          title={`[U${mDev.uPosition || 1}] ${mDev.name || mDev.ip} (ในตู้ ${rackDev.name})`}
+                                                        >
+                                                          <div className="min-w-0 flex items-center gap-1.5">
+                                                            <span className="font-mono text-[9px] font-bold px-1 py-0 rounded bg-muted/60 text-primary shrink-0">
+                                                              U{mDev.uPosition || 1}
+                                                            </span>
+                                                            <span
+                                                              className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                                                                mStatus === "offline"
+                                                                  ? "bg-rose-400"
+                                                                  : mStatus === "warning"
+                                                                  ? "bg-amber-400"
+                                                                  : "bg-emerald-400"
+                                                              }`}
+                                                            />
+                                                            <span className="shrink-0 text-xs">{mCat?.icon || "📦"}</span>
+                                                            <span className="truncate">{mDev.name || mDev.ip}</span>
+                                                          </div>
+                                                          <span className="text-[9px] font-mono shrink-0 text-muted-foreground/70">
+                                                            {mDev.ip || "-"}
+                                                          </span>
+                                                        </div>
+                                                      )
+                                                    })}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )
+                                          })}
+
+                                          {/* 2. Standalone Room Devices */}
+                                          {standalone.length > 0 && (
+                                            <div className="pt-1 space-y-1">
+                                              {racks.length > 0 && (
+                                                <div className="text-[10px] uppercase font-mono text-muted-foreground font-semibold px-1">
+                                                  อุปกรณ์ประจำห้อง ({standalone.length})
+                                                </div>
+                                              )}
+                                              {standalone.map((dev) => {
+                                                const dCatMeta = DEVICE_CATEGORIES.find((c) => c.id === dev.category)
+                                                const devStatus = String(dev.status || "").toLowerCase()
+                                                return (
+                                                  <div
+                                                    key={dev.id}
+                                                    onClick={(e) => {
+                                                      e.stopPropagation()
+                                                      if (!menuPinned) setMenuOpen(false)
+                                                      setSelectedDeviceId(dev.id)
+                                                      setModalOpen(true)
+                                                    }}
+                                                    className="flex items-center justify-between gap-2 p-1.5 rounded-md text-xs transition cursor-pointer border bg-background/60 hover:bg-background/90 border-border/50 text-foreground"
+                                                    title={`เปิดรายละเอียดอุปกรณ์ (${dev.name || dev.ip})`}
+                                                  >
+                                                    <div className="min-w-0 flex items-center gap-1.5">
+                                                      <span
+                                                        className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                                                          devStatus === "offline"
+                                                            ? "bg-rose-400"
+                                                            : devStatus === "warning"
+                                                            ? "bg-amber-400"
+                                                            : "bg-emerald-400"
+                                                        }`}
+                                                      />
+                                                      <span className="shrink-0">{dCatMeta?.icon || "📦"}</span>
+                                                      <span className="font-semibold truncate">{dev.name || dev.ip}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1 shrink-0">
+                                                      <span className="text-[10px] font-mono text-muted-foreground">
+                                                        {dev.ip || "-"}
+                                                      </span>
+                                                    </div>
+                                                  </div>
+                                                )
+                                              })}
+                                            </div>
+                                          )}
+                                        </>
+                                      )
+                                    })()}
                                   </div>
                                 )}
                               </div>

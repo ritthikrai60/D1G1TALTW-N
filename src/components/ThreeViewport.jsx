@@ -1556,48 +1556,133 @@ export const ThreeViewport = React.forwardRef(function ThreeViewport(
         emptyEl.textContent = 'ยังไม่มีอุปกรณ์ติดตั้งในห้องนี้';
         deviceListEl.appendChild(emptyEl);
       } else {
-        roomDevices.forEach((dev) => {
-          const isRack = dev.modelType === 'server_rack';
-          const dMeta = getCategoryMeta(dev.category);
-          const devStatusClass = String(dev.status || 'online').toLowerCase();
-          const devName = dev.name || dev.ip || 'Device';
-          const devIp = dev.ip || (isRack ? 'Server Rack (3D)' : '-');
+        const racks = roomDevices.filter((d) => d.modelType === 'server_rack');
+        const standalone = roomDevices.filter(
+          (d) => d.modelType !== 'server_rack' && !d.parentRackId
+        );
 
-          const itemEl = document.createElement('div');
-          itemEl.className = `room-device-item ${isRack ? 'is-rack' : ''}`;
-          itemEl.setAttribute('role', 'button');
-          itemEl.setAttribute(
+        // 1. Server Racks and their mounted devices (hierarchical)
+        racks.forEach((rackDev) => {
+          const mounted = roomDevices
+            .filter((d) => d.parentRackId === rackDev.id)
+            .sort((a, b) => Number(b.uPosition || 1) - Number(a.uPosition || 1));
+          const rackStatus = String(rackDev.status || 'online').toLowerCase();
+          const rackName = rackDev.name || rackDev.ip || 'Server Rack';
+
+          const rackItemEl = document.createElement('div');
+          rackItemEl.className = 'room-device-item is-rack';
+          rackItemEl.setAttribute('role', 'button');
+          rackItemEl.setAttribute(
             'title',
-            isRack
-              ? `เปิดจัดการตู้แร็ค Rackula Designer (${devName})`
-              : `เปิดรายละเอียดอุปกรณ์ (${devName})`
+            `เปิดดูโครงสร้างผังตู้แร็ค 42U (${rackName})`
           );
 
-          itemEl.innerHTML = `
-            <span class="status-dot ${devStatusClass}"></span>
-            <span class="dev-type-icon">${isRack ? '🗄️' : (dMeta.icon || '📦')}</span>
+          rackItemEl.innerHTML = `
+            <span class="status-dot ${rackStatus}"></span>
+            <span class="dev-type-icon">🗄️</span>
             <div class="device-meta">
-              <div class="device-name">${devName}</div>
+              <div class="device-name">${rackName}</div>
               <div class="device-sub font-mono">
-                ${devIp}${isRack ? ' · <span class="rack-badge">ตู้แร็ค 42U</span>' : ''}
+                ตู้แร็ค 42U · <span class="rack-badge">${mounted.length} อุปกรณ์</span>
               </div>
             </div>
-            <span class="device-click-hint ${isRack ? 'is-rack' : ''}">
-              ${isRack ? '🖥️ เปิดตู้' : '➔'}
+            <span class="device-click-hint is-rack">
+              ผังตู้ ➔
             </span>
           `;
 
-          itemEl.addEventListener('click', (ev) => {
+          rackItemEl.addEventListener('click', (ev) => {
             ev.stopPropagation();
             rolloutMenu.style.display = 'none';
             el.classList.remove('rollout-open');
             if (onSelectDeviceRef.current) {
-              onSelectDeviceRef.current(dev.id);
+              onSelectDeviceRef.current(rackDev.id);
             }
           });
 
-          deviceListEl.appendChild(itemEl);
+          deviceListEl.appendChild(rackItemEl);
+
+          // Render nested mounted devices ordered by U
+          mounted.forEach((mDev) => {
+            const mMeta = getCategoryMeta(mDev.category);
+            const mStatus = String(mDev.status || 'online').toLowerCase();
+            const mName = mDev.name || mDev.ip || 'Device';
+            const mIp = mDev.ip || '-';
+            const uPos = mDev.uPosition || 1;
+
+            const mItemEl = document.createElement('div');
+            mItemEl.className = 'room-device-item is-nested-device';
+            mItemEl.setAttribute('role', 'button');
+            mItemEl.setAttribute(
+              'title',
+              `[U${uPos}] ${mName} (ติดตั้งในตู้ ${rackName})`
+            );
+
+            mItemEl.innerHTML = `
+              <span class="u-badge-pill">U${uPos}</span>
+              <span class="status-dot ${mStatus}"></span>
+              <span class="dev-type-icon text-[11px]">${mMeta.icon || '📦'}</span>
+              <div class="device-meta">
+                <div class="device-name text-[10.5px]">${mName}</div>
+                <div class="device-sub font-mono text-[9px]">${mIp}</div>
+              </div>
+            `;
+
+            mItemEl.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              rolloutMenu.style.display = 'none';
+              el.classList.remove('rollout-open');
+              if (onSelectDeviceRef.current) {
+                onSelectDeviceRef.current(mDev.id);
+              }
+            });
+
+            deviceListEl.appendChild(mItemEl);
+          });
         });
+
+        // 2. Standalone Room Devices
+        if (standalone.length > 0) {
+          if (racks.length > 0) {
+            const secTitle = document.createElement('div');
+            secTitle.className = 'room-rollout-section-title';
+            secTitle.innerHTML = `<span>อุปกรณ์ประจำห้อง (${standalone.length})</span>`;
+            deviceListEl.appendChild(secTitle);
+          }
+
+          standalone.forEach((dev) => {
+            const dMeta = getCategoryMeta(dev.category);
+            const devStatusClass = String(dev.status || 'online').toLowerCase();
+            const devName = dev.name || dev.ip || 'Device';
+            const devIp = dev.ip || '-';
+
+            const itemEl = document.createElement('div');
+            itemEl.className = 'room-device-item';
+            itemEl.setAttribute('role', 'button');
+            itemEl.setAttribute('title', `เปิดรายละเอียดอุปกรณ์ (${devName})`);
+
+            itemEl.innerHTML = `
+              <span class="status-dot ${devStatusClass}"></span>
+              <span class="dev-type-icon">${dMeta.icon || '📦'}</span>
+              <div class="device-meta">
+                <div class="device-name">${devName}</div>
+                <div class="device-sub font-mono">${devIp}</div>
+              </div>
+              <span class="device-click-hint">➔</span>
+            `;
+
+            itemEl.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              rolloutMenu.style.display = 'none';
+              el.classList.remove('rollout-open');
+              if (onSelectDeviceRef.current) {
+                onSelectDeviceRef.current(dev.id);
+              }
+            });
+
+            deviceListEl.appendChild(itemEl);
+          });
+        }
       }
 
       rolloutMenu.appendChild(deviceListEl);
