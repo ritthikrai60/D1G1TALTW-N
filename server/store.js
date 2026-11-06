@@ -111,7 +111,12 @@ function loadFromDisk() {
         settings: { ...DEFAULT_STATE.settings, ...(parsed.settings || {}) },
         networks: dedupedNetworks,
         rooms: Array.isArray(parsed.rooms) ? parsed.rooms : [],
-        devices: Array.isArray(parsed.devices) ? parsed.devices : [],
+        devices: (Array.isArray(parsed.devices) ? parsed.devices : []).map((d) => {
+          if (d.uPosition && d.uPosition > 48 && d.uPosition % 6 === 0) {
+            return { ...d, uPosition: Math.round(d.uPosition / 6) };
+          }
+          return d;
+        }),
         hierarchy: parsed.hierarchy || { networkTopologyTree: null, spatialBuildingTree: null },
         scanHistory: Array.isArray(parsed.scanHistory) ? parsed.scanHistory.slice(0, 50) : [],
       };
@@ -537,7 +542,14 @@ export function isUnboundRackPart(d) {
 // Public Viewer Snapshot: Strictly exposes ONLY placed/organized devices (`d.isPlaced === true`)
 export function getPublicSnapshot() {
   recomputeHierarchy();
-  const placedDevices = state.devices.filter((d) => d.isPlaced && !isUnboundRackPart(d));
+  const placedDevices = state.devices
+    .filter((d) => d.isPlaced && !isUnboundRackPart(d))
+    .map((d) => {
+      if (d.uPosition && d.uPosition > 48 && d.uPosition % 6 === 0) {
+        d.uPosition = Math.round(d.uPosition / 6);
+      }
+      return d;
+    });
   return {
     schemaVersion: '2.0.0',
     metadata: state.metadata,
