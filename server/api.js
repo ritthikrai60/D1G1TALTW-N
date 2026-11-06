@@ -747,11 +747,17 @@ export function createApiRouterAndWs() {
         });
       }
 
+      const rawPos = Number(item.uPosition || 1);
+      const humanU = rawPos > rackHeight && rawPos % 6 === 0
+        ? Math.round(rawPos / 6)
+        : Math.max(1, Math.min(rackHeight, Math.round(rawPos)));
+
       placedDevices.push({
         id: item.id,
         device_type: slug,
         name: item.name,
-        position: Math.max(1, Number(item.uPosition || 1)),
+        // Rackula layout schema v1.0 requires internal units where UNITS_PER_U = 6 (e.g. U25 -> 150)
+        position: humanU * 6,
         face: item.rackFace || item.face || 'front',
         notes: item.notes || (item.ip ? `IP: ${item.ip}` : undefined),
       });
@@ -873,7 +879,12 @@ export function createApiRouterAndWs() {
 
       // Place or update positions for incoming devices
       for (const inc of incomingDevices) {
-        const targetPos = Math.max(1, Number(inc.position || 1));
+        const rawPos = Number(inc.position || 1);
+        // Rackula layout v1.0 uses internal units where 1U = 6 units (UNITS_PER_U = 6).
+        // Convert from Rackula internal units (e.g. 150 = U25, 6 = U1) to human U (1..rackHeight).
+        const targetPos = (rawPos > rackHeight || (rawPos >= 6 && rawPos % 6 === 0))
+          ? Math.max(1, Math.min(rackHeight, Math.round(rawPos / 6)))
+          : Math.max(1, Math.min(rackHeight, Math.round(rawPos)));
         const targetFace = inc.face || 'front';
         const targetName = inc.name;
 

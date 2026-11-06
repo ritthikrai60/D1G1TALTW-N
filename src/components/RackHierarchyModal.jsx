@@ -85,13 +85,19 @@ export function RackHierarchyModal({
     return ROOM_TYPES.find((r) => r.id === room.roomType) || ROOM_TYPES[1]
   }, [room])
 
+  const getHumanU = (dev) => {
+    const raw = Number(dev?.uPosition || 1)
+    if (raw > rackHeight && raw % 6 === 0) return Math.round(raw / 6)
+    return Math.max(1, Math.min(rackHeight, Math.round(raw)))
+  }
+
   // Filter devices mounted inside this specific rack
   const mountedDevices = useMemo(() => {
     if (!rack?.id) return []
     return (allDevices || [])
       .filter((d) => d.isPlaced && d.parentRackId === rack.id)
-      .sort((a, b) => Number(b.uPosition || 1) - Number(a.uPosition || 1))
-  }, [allDevices, rack])
+      .sort((a, b) => getHumanU(b) - getHumanU(a))
+  }, [allDevices, rack, rackHeight])
 
   // Filter mounted devices for the currently active face (front / rear)
   const faceMountedDevices = useMemo(() => {
@@ -105,14 +111,14 @@ export function RackHierarchyModal({
   const uSlotMap = useMemo(() => {
     const map = new Map()
     faceMountedDevices.forEach((dev) => {
-      const uPos = Math.max(1, Number(dev.uPosition || 1))
+      const uPos = getHumanU(dev)
       const uH = Math.max(1, Number(dev.uHeight || 1))
       for (let u = uPos; u < uPos + uH; u++) {
         map.set(u, { device: dev, isRoot: u === uPos })
       }
     })
     return map
-  }, [faceMountedDevices])
+  }, [faceMountedDevices, rackHeight])
 
   // Calculate overall Rack Health Status
   const rackHealth = useMemo(() => {
@@ -458,7 +464,7 @@ export function RackHierarchyModal({
                   <>
                     <ChevronRight className="h-3 w-3 text-muted-foreground/60" />
                     <Badge variant="secondary" className="font-mono text-[11px] gap-1 px-1.5 py-0">
-                      U{selectedDevice.uPosition} · {selectedDevice.name}
+                      U{getHumanU(selectedDevice)} · {selectedDevice.name}
                     </Badge>
                   </>
                 )}
@@ -511,7 +517,7 @@ export function RackHierarchyModal({
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="font-mono text-[11px] font-bold px-1.5 py-0.5 rounded bg-muted/60 text-foreground shrink-0">
-                              U{dev.uPosition || 1}
+                              U{getHumanU(dev)}
                             </span>
                             <span className={`h-2 w-2 rounded-full shrink-0 ${dotColor}`} />
                             <span className="shrink-0">{catMeta?.icon || "📦"}</span>
@@ -618,7 +624,7 @@ export function RackHierarchyModal({
                       <div className="font-mono font-bold text-primary flex items-center gap-1.5">
                         <Layers className="h-3.5 w-3.5" />
                         <span>
-                          ช่อง U{selectedDevice.uPosition || 1} ({selectedDevice.uHeight || 1}U) ·{" "}
+                          ช่อง U{getHumanU(selectedDevice)} ({selectedDevice.uHeight || 1}U) ·{" "}
                           {(selectedDevice.rackFace || "front") === "rear" ? "ด้านหลัง" : "ด้านหน้า"}
                         </span>
                       </div>

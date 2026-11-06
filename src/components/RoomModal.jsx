@@ -412,6 +412,8 @@ export function RoomModal({
                                   {mounted.map((mDev) => {
                                     const mCat = DEVICE_CATEGORIES.find((c) => c.id === mDev.category) || DEVICE_CATEGORIES[0]
                                     const mStatus = String(mDev.status || "Online").toLowerCase()
+                                    const rawPos = Number(mDev.uPosition || 1)
+                                    const uPos = rawPos > 48 && rawPos % 6 === 0 ? Math.round(rawPos / 6) : Math.max(1, Math.round(rawPos))
                                     return (
                                       <div
                                         key={mDev.id}
@@ -419,7 +421,7 @@ export function RoomModal({
                                       >
                                         <div className="min-w-0 flex items-center gap-1.5 truncate">
                                           <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted/60 text-primary shrink-0">
-                                            U{mDev.uPosition || 1}
+                                            U{uPos}
                                           </span>
                                           <span
                                             className={`h-1.5 w-1.5 rounded-full shrink-0 ${

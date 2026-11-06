@@ -1608,7 +1608,8 @@ export const ThreeViewport = React.forwardRef(function ThreeViewport(
             const mStatus = String(mDev.status || 'online').toLowerCase();
             const mName = mDev.name || mDev.ip || 'Device';
             const mIp = mDev.ip || '-';
-            const uPos = mDev.uPosition || 1;
+            const rawPos = Number(mDev.uPosition || 1);
+            const uPos = rawPos > 48 && rawPos % 6 === 0 ? Math.round(rawPos / 6) : Math.max(1, Math.round(rawPos));
 
             const mItemEl = document.createElement('div');
             mItemEl.className = 'room-device-item is-nested-device';

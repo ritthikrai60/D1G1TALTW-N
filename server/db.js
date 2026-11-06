@@ -51,7 +51,11 @@ export function formatDeviceFromDb(record) {
     modelType: record.modelType || 'pin',
     rotationY: Number(record.rotationY || 0),
     parentRackId: record.parentRackId || '',
-    uPosition: record.uPosition !== null && record.uPosition !== undefined ? Number(record.uPosition) : null,
+    uPosition: (() => {
+      if (record.uPosition === null || record.uPosition === undefined) return null;
+      const pos = Number(record.uPosition);
+      return pos > 48 && pos % 6 === 0 ? Math.round(pos / 6) : pos;
+    })(),
     uHeight: record.uHeight !== null && record.uHeight !== undefined ? Number(record.uHeight) : 1,
     rackFace: record.rackFace || 'front',
     isFullDepth: record.isFullDepth !== undefined ? Boolean(record.isFullDepth) : true,

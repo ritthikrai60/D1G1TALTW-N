@@ -983,7 +983,11 @@ export function upsertDevice(devData) {
     modelType: devData.modelType || prev.modelType || 'pin',
     rotationY: devData.rotationY !== undefined ? Number(devData.rotationY) : (prev.rotationY !== undefined ? Number(prev.rotationY) : 0),
     parentRackId: devData.parentRackId !== undefined ? String(devData.parentRackId || '') : (prev.parentRackId || ''),
-    uPosition: devData.uPosition !== undefined ? (devData.uPosition !== null ? Number(devData.uPosition) : null) : (prev.uPosition ?? null),
+    uPosition: (() => {
+      const raw = devData.uPosition !== undefined ? (devData.uPosition !== null ? Number(devData.uPosition) : null) : (prev.uPosition ?? null);
+      if (raw === null || raw === undefined) return null;
+      return raw > 48 && raw % 6 === 0 ? Math.round(raw / 6) : raw;
+    })(),
     uHeight: devData.uHeight !== undefined ? Math.max(1, Number(devData.uHeight) || 1) : Math.max(1, Number(prev.uHeight) || 1),
     rackFace: devData.rackFace || devData.face || prev.rackFace || 'front',
     isFullDepth: devData.isFullDepth !== undefined ? Boolean(devData.isFullDepth) : (prev.isFullDepth !== undefined ? Boolean(prev.isFullDepth) : true),

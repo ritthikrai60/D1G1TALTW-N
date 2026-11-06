@@ -760,6 +760,7 @@ export function ViewerMenu({
                                                     {mounted.map((mDev) => {
                                                       const mCat = DEVICE_CATEGORIES.find((c) => c.id === mDev.category)
                                                       const mStatus = String(mDev.status || "online").toLowerCase()
+                                                      const uPos = mDev.uPosition > 48 && mDev.uPosition % 6 === 0 ? Math.round(mDev.uPosition / 6) : Math.max(1, Math.round(Number(mDev.uPosition || 1)))
                                                       return (
                                                         <div
                                                           key={mDev.id}
@@ -775,11 +776,11 @@ export function ViewerMenu({
                                                             }
                                                           }}
                                                           className="flex items-center justify-between gap-1.5 p-1 rounded text-[11px] cursor-pointer hover:bg-secondary/40 text-muted-foreground hover:text-foreground transition"
-                                                          title={`[U${mDev.uPosition || 1}] ${mDev.name || mDev.ip} (ในตู้ ${rackDev.name})`}
+                                                          title={`[U${uPos}] ${mDev.name || mDev.ip} (ในตู้ ${rackDev.name})`}
                                                         >
                                                           <div className="min-w-0 flex items-center gap-1.5">
                                                             <span className="font-mono text-[9px] font-bold px-1 py-0 rounded bg-muted/60 text-primary shrink-0">
-                                                              U{mDev.uPosition || 1}
+                                                              U{uPos}
                                                             </span>
                                                             <span
                                                               className={`h-1.5 w-1.5 rounded-full shrink-0 ${
